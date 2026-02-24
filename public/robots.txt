@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://imagekitpro.com/sitemap.xml

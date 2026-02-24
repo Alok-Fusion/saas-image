@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://imagekitpro.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://imagekitpro.com/#/compressor</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://imagekitpro.com/#/resizer</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://imagekitpro.com/#/background-remover</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://imagekitpro.com/#/cropper</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://imagekitpro.com/#/rotator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://imagekitpro.com/#/watermark</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://imagekitpro.com/#/watermark-remover</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://imagekitpro.com/#/image-to-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://imagekitpro.com/#/pdf-to-image</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://imagekitpro.com/#/exif-cleaner</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/duplicate-finder</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/ocr</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/color-palette</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/device-mockup</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/ascii-art</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/thumbnail</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/instagram-grid</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/favicon</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/color-blindness</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://imagekitpro.com/#/image-comparison</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+</urlset>

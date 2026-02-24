@@ -1,0 +1,490 @@
+================================================================================
+                    IMAGE KIT PRO — PROJECT DOCUMENTATION
+                    Complete Architecture & Feature Reference
+================================================================================
+                    Last Updated: February 24, 2026
+                    Author: Alok Kushwaha
+================================================================================
+
+
+TABLE OF CONTENTS
+─────────────────
+1.  PROJECT OVERVIEW
+2.  TECH STACK
+3.  PROJECT STRUCTURE
+4.  ARCHITECTURE
+5.  ALL 20 TOOLS (Complete List)
+6.  FEATURE: Tool-Specific URLs (Hash-Based Routing)
+7.  FEATURE: Shareable Output Branding
+8.  FEATURE: Smart Tool Suggestions
+9.  FEATURE: Google Indexing & SEO
+10. FEATURE: Favorites & Recently Used
+11. DESIGN SYSTEM
+12. BUILD & DEPLOYMENT
+13. CHANGELOG
+
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+ImageKit Pro is a free, browser-based SaaS application offering 20+ image
+processing tools. All processing happens client-side — no images are ever
+uploaded to a server.
+
+App Name:       ImageKit Pro
+Live URL:       https://imagekitpro.com
+Package Name:   image-utility-saas
+Version:        1.0.0
+License:        (see LICENSE file)
+
+
+================================================================================
+2. TECH STACK
+================================================================================
+
+FRONTEND FRAMEWORK
+  • React 18.3        — UI Component Library
+  • TypeScript 5.9     — Type-safe JavaScript
+  • Vite 6.0           — Build tool & dev server
+
+KEY DEPENDENCIES
+  ┌─────────────────────────────┬─────────────────────────────────────────────┐
+  │ Package                     │ Purpose                                     │
+  ├─────────────────────────────┼─────────────────────────────────────────────┤
+  │ @imgly/background-removal  │ AI-powered background removal (ONNX)       │
+  │ onnxruntime-web             │ ONNX model inference in browser            │
+  │ tesseract.js                │ OCR text extraction (12 languages)         │
+  │ pdfjs-dist                  │ PDF rendering & parsing                    │
+  │ pdf-lib                     │ PDF creation from images                   │
+  │ jspdf                       │ Alternative PDF generation                 │
+  │ jszip                       │ ZIP file creation for bulk downloads       │
+  │ file-saver                  │ Blob download utility                      │
+  │ pako                        │ Compression (used by ONNX runtime)        │
+  │ exif-js                     │ EXIF metadata reading                      │
+  └─────────────────────────────┴─────────────────────────────────────────────┘
+
+STYLING
+  • Vanilla CSS with Custom Properties (CSS Variables)
+  • Google Fonts: Inter (300–800 weights)
+  • Dark theme with glassmorphism, gradients, 3D transforms
+
+DEV TOOLS
+  • @vitejs/plugin-react    — React Fast Refresh in development
+  • @types/react             — TypeScript definitions
+  • @types/react-dom         — TypeScript definitions
+  • @types/file-saver        — TypeScript definitions
+
+
+================================================================================
+3. PROJECT STRUCTURE
+================================================================================
+
+saas/
+├── index.html                   # Entry HTML with SEO meta tags & JSON-LD
+├── package.json                 # Dependencies & scripts
+├── vite.config.ts               # Vite configuration
+├── tsconfig.json                # TypeScript configuration
+│
+├── public/
+│   ├── sitemap.xml              # [NEW] Tool URLs for Google indexing
+│   ├── robots.txt               # [NEW] Crawler directives
+│   └── vite.svg                 # Favicon
+│
+├── src/
+│   ├── main.tsx                 # React entry point
+│   ├── App.tsx                  # Main app shell (routing, layout, features)
+│   ├── index.css                # Complete design system (1350+ lines)
+│   ├── vite-env.d.ts            # Vite type declarations
+│   ├── ToolSuggestionsBar.tsx   # [NEW] Smart suggestions component
+│   │
+│   ├── hooks/
+│   │   ├── useFavorites.ts      # [NEW] Favorites persistence hook
+│   │   └── useRecentlyUsed.ts   # [NEW] Recently used persistence hook
+│   │
+│   ├── utils/
+│   │   ├── imageProcessing.ts   # Image compression, resizing, download utils
+│   │   ├── socialPresets.ts     # Social media size presets
+│   │   ├── toolSuggestions.ts   # [NEW] Tool relationship map & metadata
+│   │   └── OutputBranding.ts   # [NEW] "Made with ImageKit Pro" badge
+│   │
+│   └── tools/                   # 20 tool components (each self-contained)
+│       ├── AsciiArtGenerator.tsx
+│       ├── BackgroundRemover.tsx
+│       ├── ColorBlindnessSimulator.tsx
+│       ├── ColorPaletteExtractor.tsx
+│       ├── DeviceMockupGenerator.tsx
+│       ├── DuplicateFinder.tsx
+│       ├── ExifCleaner.tsx
+│       ├── FaviconGenerator.tsx
+│       ├── ImageComparisonSlider.tsx
+│       ├── ImageCompressor.tsx
+│       ├── ImageCropper.tsx
+│       ├── ImageRotator.tsx
+│       ├── ImageToPdf.tsx
+│       ├── InstagramGridSplitter.tsx
+│       ├── OcrExtractor.tsx
+│       ├── PdfToImage.tsx
+│       ├── SocialMediaResizer.tsx
+│       ├── ThumbnailMaker.tsx
+│       ├── WatermarkAdder.tsx
+│       └── WatermarkRemover.tsx
+│
+├── dist/                        # Production build output
+├── scripts/
+│   └── fix-permissions.js       # Post-install script for Vercel builds
+└── PROJECT_DOCUMENTATION.txt    # This file
+
+
+================================================================================
+4. ARCHITECTURE
+================================================================================
+
+ARCHITECTURE DIAGRAM
+────────────────────
+
+    ┌──────────────────────────────────────────────────────────┐
+    │                      index.html                          │
+    │   (SEO: OG, Twitter, JSON-LD, Canonical, Sitemap ref)   │
+    └────────────────────┬─────────────────────────────────────┘
+                         │
+                    ┌────▼────┐
+                    │ main.tsx │  React entry point
+                    └────┬────┘
+                         │
+                  ┌──────▼──────┐
+                  │   App.tsx   │  Main application shell
+                  │             │
+                  │ Features:   │
+                  │ • Hash URL  │  ─── window.location.hash ↔ Tool state
+                  │   routing   │
+                  │ • Dynamic   │  ─── document.title / meta desc updates
+                  │   SEO       │
+                  │ • Favorites │  ─── useFavorites() ↔ localStorage
+                  │ • Recents   │  ─── useRecentlyUsed() ↔ localStorage
+                  └──┬─────┬───┘
+                     │     │
+        ┌────────────▼┐    │
+        │  HomePage   │    │
+        │  ┌────────┐ │    │
+        │  │Favorites│ │    │
+        │  │ Section │ │    │  ┌───────────────────────┐
+        │  ├────────┤ │    ├──▶  Tool Component        │
+        │  │Recently│ │    │  │  (each of 20 tools)    │
+        │  │ Used   │ │    │  │  ┌───────────────────┐ │
+        │  ├────────┤ │    │  │  │ Dropzone / Upload │ │
+        │  │Category│ │    │  │  │ Controls Panel    │ │
+        │  │ Grids  │ │    │  │  │ Preview / Output  │ │
+        │  │(ToolCard)│    │  │  │ Download Actions  │ │
+        │  └────────┘ │    │  │  └───────────────────┘ │
+        └─────────────┘    │  └───────────────────────┘
+                           │
+                  ┌────────▼───────────┐
+                  │ToolSuggestionsBar  │  Shows 3 related tools
+                  │ ↳ toolSuggestions  │  per active tool
+                  └────────────────────┘
+
+DATA FLOW
+─────────
+  1. User visits URL (e.g., /#/compressor)
+  2. App reads hash → sets currentTool state
+  3. Dynamic SEO updates document.title + meta description
+  4. Tool component renders with onBack callback
+  5. ToolSuggestionsBar renders below tool with related tools
+  6. On tool selection: hash updates, addRecent() called, state changes
+  7. On back: hash cleared, homepage renders with favorites/recents
+
+STATE MANAGEMENT
+───────────────
+  • React useState for currentTool (synced with URL hash)
+  • useFavorites() hook → localStorage key: "imagekit_favorites"
+  • useRecentlyUsed() hook → localStorage key: "imagekit_recent"
+  • No external state library needed (all local state)
+
+ROUTING
+───────
+  • Hash-based routing (no react-router dependency)
+  • Format: /#/{tool-slug}  (e.g., /#/compressor, /#/background-remover)
+  • Supports browser back/forward via popstate listener
+  • Direct URL access works (deep linking)
+
+
+================================================================================
+5. ALL 20 TOOLS (Complete List)
+================================================================================
+
+CORE TOOLS
+  ┌───┬──────────────────────┬──────────────────────────────────────────────┐
+  │ # │ Tool                 │ Description                                  │
+  ├───┼──────────────────────┼──────────────────────────────────────────────┤
+  │ 1 │ Image Compressor     │ Reduce file size (JPEG/PNG/WebP), quality   │
+  │   │                      │ slider, real-time preview with size stats   │
+  │ 2 │ Social Media Resizer │ Resize for Instagram, YouTube, LinkedIn,   │
+  │   │                      │ Twitter, Facebook with preset dimensions    │
+  │ 3 │ Background Remover   │ AI-powered via ONNX model, works locally   │
+  └───┴──────────────────────┴──────────────────────────────────────────────┘
+
+EDIT & TRANSFORM
+  ┌───┬──────────────────────┬──────────────────────────────────────────────┐
+  │ 4 │ Image Cropper        │ Preset aspect ratios: 1:1, 16:9, 4:3       │
+  │ 5 │ Image Rotator        │ Rotate 90°/180°, flip H/V                  │
+  │ 6 │ Watermark Adder      │ Text watermarks, custom position & style   │
+  │ 7 │ Watermark Remover    │ Inpaint, blur, or pixelate removal         │
+  └───┴──────────────────────┴──────────────────────────────────────────────┘
+
+PDF TOOLS
+  ┌───┬──────────────────────┬──────────────────────────────────────────────┐
+  │ 8 │ Image to PDF         │ Multi-image → single PDF conversion        │
+  │ 9 │ PDF to Image         │ PDF pages → PNG images extraction          │
+  └───┴──────────────────────┴──────────────────────────────────────────────┘
+
+PRIVACY & UTILITIES
+  ┌───┬──────────────────────┬──────────────────────────────────────────────┐
+  │10 │ EXIF Privacy Cleaner │ Strip GPS, camera info, all metadata       │
+  │11 │ Duplicate Finder     │ Perceptual hashing for similar images      │
+  │12 │ OCR Text Extractor   │ Tesseract.js, 12 language support          │
+  └───┴──────────────────────┴──────────────────────────────────────────────┘
+
+DESIGN & CREATIVE
+  ┌───┬──────────────────────┬──────────────────────────────────────────────┐
+  │13 │ Color Palette Ext.   │ Extract colors → HEX/RGB/CSS gradients     │
+  │14 │ Device Mockup Gen.   │ iPhone, MacBook, iPad frames               │
+  │15 │ ASCII Art Generator  │ Image → ASCII text art conversion          │
+  │16 │ Thumbnail Maker      │ Combine images, text, emojis for YT etc.  │
+  └───┴──────────────────────┴──────────────────────────────────────────────┘
+
+SOCIAL MEDIA & WEB
+  ┌───┬──────────────────────┬──────────────────────────────────────────────┐
+  │17 │ Instagram Grid Split │ 3×3 / 3×2 / 3×1 carousel grids            │
+  │18 │ Favicon Generator    │ All sizes + manifest.json + HTML snippet   │
+  └───┴──────────────────────┴──────────────────────────────────────────────┘
+
+ACCESSIBILITY & ANALYSIS
+  ┌───┬──────────────────────┬──────────────────────────────────────────────┐
+  │19 │ Color Blind Sim.     │ Protanopia, deuteranopia, tritanopia views │
+  │20 │ Image Comparison     │ Before/after slider comparison             │
+  └───┴──────────────────────┴──────────────────────────────────────────────┘
+
+
+================================================================================
+6. FEATURE: Tool-Specific URLs (Hash-Based Routing)
+================================================================================
+
+PURPOSE
+  Each tool now has a unique, shareable URL using hash-based routing.
+
+HOW IT WORKS
+  • URL format: https://imagekitpro.com/#/{tool-slug}
+  • Examples:
+    - /#/compressor       → Image Compressor
+    - /#/background-remover → Background Remover
+    - /#/ocr              → OCR Text Extractor
+  • Home page: no hash (just the base URL)
+
+IMPLEMENTATION
+  • getToolFromHash() reads window.location.hash on mount
+  • setHashForTool() updates hash via history.pushState
+  • popstate event listener enables browser back/forward navigation
+  • No external router dependency — zero added bundle size
+
+FILES MODIFIED
+  • src/App.tsx — Added hash routing logic
+
+
+================================================================================
+7. FEATURE: Shareable Output Branding
+================================================================================
+
+PURPOSE
+  Adds an optional "Made with ImageKit Pro ✨" badge to downloaded images.
+
+HOW IT WORKS
+  • Semi-transparent dark pill badge in bottom-right corner
+  • Responsive font size (scales with image dimensions)
+  • Gradient border accent matching the app theme
+
+UTILITY FUNCTIONS
+  • addBrandingToCanvas(canvas)    — Draws badge on an existing canvas
+  • addBrandingToBlob(blob)        — Loads blob → canvas → brand → new blob
+
+FILES CREATED
+  • src/utils/OutputBranding.ts
+
+
+================================================================================
+8. FEATURE: Smart Tool Suggestions
+================================================================================
+
+PURPOSE
+  After using a tool, users see 3 related tools they might want next.
+
+HOW IT WORKS
+  • Each tool maps to 3 curated suggestions (hardcoded relationship map)
+  • Displayed as a glassmorphism bar below the active tool
+  • Clicking a suggestion navigates to that tool (updates URL hash)
+
+EXAMPLE SUGGESTIONS
+  ┌──────────────────────┬───────────────────────────────────────────────┐
+  │ Current Tool         │ Suggested Tools                               │
+  ├──────────────────────┼───────────────────────────────────────────────┤
+  │ Image Compressor     │ Social Media Resizer, Background Remover,    │
+  │                      │ Image Cropper                                 │
+  │ Background Remover   │ Image Compressor, Device Mockup, Thumbnail   │
+  │ Watermark Adder      │ Watermark Remover, Image Compressor,         │
+  │                      │ Thumbnail Maker                               │
+  └──────────────────────┴───────────────────────────────────────────────┘
+
+FILES CREATED
+  • src/utils/toolSuggestions.ts      — Suggestion map & tool metadata
+  • src/ToolSuggestionsBar.tsx         — UI component
+
+
+================================================================================
+9. FEATURE: Google Indexing & SEO
+================================================================================
+
+PURPOSE
+  Optimize for Google Search / social sharing with comprehensive metadata.
+
+IMPLEMENTED
+  ┌──────────────────────┬───────────────────────────────────────────────┐
+  │ SEO Element          │ Details                                       │
+  ├──────────────────────┼───────────────────────────────────────────────┤
+  │ Title Tag            │ Dynamic per-tool titles via document.title   │
+  │ Meta Description     │ Dynamic per-tool descriptions                │
+  │ Open Graph Tags      │ og:type, og:title, og:description, og:url   │
+  │ Twitter Cards        │ summary_large_image card type                │
+  │ JSON-LD              │ WebApplication schema with featureList      │
+  │ Canonical URL        │ <link rel="canonical">                       │
+  │ sitemap.xml          │ All 21 URLs (home + 20 tools)               │
+  │ robots.txt           │ Allow all crawlers, sitemap reference        │
+  │ Keywords             │ Relevant tool-related keywords               │
+  └──────────────────────┴───────────────────────────────────────────────┘
+
+DYNAMIC SEO (per-tool)
+  • Each tool has a unique <title> and <meta description>
+  • Updated via useEffect whenever currentTool changes
+  • Defined in TOOL_SEO map in App.tsx
+
+FILES MODIFIED/CREATED
+  • index.html             — OG, Twitter, JSON-LD, canonical
+  • public/sitemap.xml     — [NEW] URL listing
+  • public/robots.txt      — [NEW] Crawler rules
+  • src/App.tsx             — Dynamic title/description updates
+
+
+================================================================================
+10. FEATURE: Favorites & Recently Used
+================================================================================
+
+PURPOSE
+  Users can star favorite tools and see recently used tools for quick access.
+
+FAVORITES (⭐)
+  • Star button (★/☆) on each tool card
+  • Persisted in localStorage (key: "imagekit_favorites")
+  • "Your Favorites" section appears at top of homepage when items exist
+  • Toggle: click star to add/remove
+
+RECENTLY USED (🕐)
+  • Automatically tracked when any tool is opened
+  • Max 6 items, most-recent-first ordering
+  • Persisted in localStorage (key: "imagekit_recent")
+  • "Recently Used" section appears below favorites on homepage
+
+FILES CREATED
+  • src/hooks/useFavorites.ts       — Custom React hook
+  • src/hooks/useRecentlyUsed.ts    — Custom React hook
+
+FILES MODIFIED
+  • src/App.tsx      — HomePage renders favorites/recents sections
+  • src/index.css    — Favorite button styling (★ gold glow effect)
+
+
+================================================================================
+11. DESIGN SYSTEM
+================================================================================
+
+THEME
+  • Primary: Dark background (#0a0a0f)
+  • Gradients: Purple-blue (#667eea → #764ba2), Pink (#f093fb → #f5576c)
+  • Glassmorphism: Semi-transparent cards with backdrop-filter blur
+  • 3D Effects: CSS perspective, rotateX on card hover, floating shapes
+
+CSS VARIABLES (src/index.css)
+  • 40+ custom properties organized by category:
+    - Colors (--color-bg-*, --color-text-*, --color-border-*)
+    - Gradients (--gradient-primary, --gradient-secondary, etc.)
+    - Spacing (--spacing-xs through --spacing-3xl)
+    - Typography (--font-size-xs through --font-size-5xl)
+    - Border Radius (--radius-sm through --radius-full)
+    - Shadows (--shadow-sm, --shadow-md, --shadow-lg, --shadow-glow)
+    - Transitions (--transition-fast, --transition-base, --transition-slow)
+    - Z-index (--z-dropdown, --z-modal, --z-tooltip)
+
+KEY ANIMATIONS
+  • fadeInUp — Page entrance animation
+  • floatShapes — Background ambient floating effect
+  • pulse — Logo icon & NEW badge pulse
+  • bounce — Dropzone icon bounce
+  • spin — Processing spinner
+
+RESPONSIVE BREAKPOINTS
+  • Mobile: max-width 768px
+    - Font sizes reduced
+    - Tools grid → single column
+    - Header stacks vertically
+
+
+================================================================================
+12. BUILD & DEPLOYMENT
+================================================================================
+
+SCRIPTS
+  ┌──────────────────┬──────────────────────────────────────────────────┐
+  │ Command          │ Purpose                                          │
+  ├──────────────────┼──────────────────────────────────────────────────┤
+  │ npm run dev      │ Start Vite dev server with HMR                  │
+  │ npm run build    │ Production build → dist/ folder                 │
+  │ npm run preview  │ Preview production build locally                │
+  │ npm run lint     │ ESLint code checking                            │
+  └──────────────────┴──────────────────────────────────────────────────┘
+
+DEPLOYMENT (Vercel)
+  • Build command: npm run build
+  • Output directory: dist
+  • Post-install script (fix-permissions.js) handles executable permissions
+  • Node.js environment: automatic via Vercel
+
+BUILD OUTPUT (as of Feb 2026)
+  • 566 modules transformed
+  • Build time: ~12.5 seconds
+  • CSS bundle: 22.10 kB (4.42 kB gzip)
+  • Main JS: 1,412.60 kB (481.91 kB gzip) — includes ONNX runtime
+  • WASM: 23,914 kB — ONNX SIMD threaded runtime
+
+
+================================================================================
+13. CHANGELOG
+================================================================================
+
+February 24, 2026
+  [NEW] Tool-specific URLs — hash-based routing (/#/tool-name)
+  [NEW] Shareable output branding utility (OutputBranding.ts)
+  [NEW] Smart tool suggestions bar (ToolSuggestionsBar.tsx)
+  [NEW] Google indexing: SEO meta tags, JSON-LD, sitemap.xml, robots.txt
+  [NEW] Favorites & recently used with localStorage persistence
+  [NEW] Dynamic SEO: per-tool title and meta description updates
+  [NEW] This comprehensive project documentation file
+
+Previous
+  • 20 image processing tools fully implemented
+  • Premium dark theme with glassmorphism design system
+  • 3D animations and micro-interactions
+  • Responsive layout for mobile/desktop
+  • Vercel deployment configuration
+
+
+================================================================================
+                         END OF DOCUMENTATION
+================================================================================
