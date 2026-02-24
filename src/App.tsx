@@ -286,7 +286,7 @@ function App() {
                 )}
             </main>
             <footer className="footer">
-                <p>© 2024 ImageKit Pro. All processing happens in your browser - your images never leave your device.</p>
+                <p>© 2026 ImageKit Pro. All processing happens in your browser - your images never leave your device.</p>
                 <p style={{ marginTop: '0.5rem', opacity: 0.7 }}>Developed with ❤️ by <strong>Alok Kushwaha</strong></p>
             </footer>
         </>
