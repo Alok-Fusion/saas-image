@@ -14,7 +14,11 @@ export function useRecentlyUsed() {
     })
 
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(recentTools))
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(recentTools))
+        } catch {
+            // Private mode or full quota: recent tools still work for this session.
+        }
     }, [recentTools])
 
     const addRecent = useCallback((tool: string) => {

@@ -13,7 +13,11 @@ export function useFavorites() {
     })
 
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(favorites))
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(favorites))
+        } catch {
+            // Private mode or full quota: favorites still work for this session.
+        }
     }, [favorites])
 
     const toggleFavorite = useCallback((tool: string) => {
