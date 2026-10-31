@@ -1,330 +1,407 @@
-import { useCallback, useRef, useState } from 'react'
-import { downloadBlob, formatFileSize, getExtension, getImageInfo, resizeImage, type ImageInfo } from '../utils/imageProcessing'
-import { getPopularPresets, platforms } from '../utils/socialPresets'
+import { Archive, Check, Download, Maximize2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import Button from '../components/Button'
+import Dropzone from '../components/Dropzone'
+import FileChip from '../components/FileChip'
+import SegmentedControl from '../components/SegmentedControl'
+import StatTile from '../components/StatTile'
+import ToolHeader from '../components/ToolHeader'
+import { useToast } from '../components/Toast'
+import WorkspaceLayout from '../components/WorkspaceLayout'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import {
+    buildOutputName,
+    downloadBlob,
+    formatFileSize,
+    getImageInfo,
+    resizeImage,
+    type ImageInfo,
+} from '../utils/imageProcessing'
+import { getSampleImageFile } from '../utils/sampleImage'
+import { platforms, type PlatformPreset } from '../utils/socialPresets'
 
 interface SocialMediaResizerProps {
     onBack: () => void
+    initialFile?: File | null
+    onProduceFile?: (file: File) => void
 }
 
-interface SelectedPreset {
-    platform: string
-    preset: string
-    width: number
-    height: number
-    icon: string
+interface ActivePresetItem {
+    platformName: string
+    preset: PlatformPreset
 }
 
-interface ResizedImage {
-    preset: SelectedPreset
-    blob: Blob
-    url: string
-}
-
-export default function SocialMediaResizer({ onBack }: SocialMediaResizerProps) {
-    const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
+export default function SocialMediaResizer({
+    onBack,
+    initialFile,
+    onProduceFile,
+}: SocialMediaResizerProps) {
+    const [file, setFile] = useState<File | null>(initialFile ?? null)
+    const [prevInitialFile, setPrevInitialFile] = useState<File | null>(initialFile ?? null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
-    const [selectedPresets, setSelectedPresets] = useState<SelectedPreset[]>([])
-    const [resizedImages, setResizedImages] = useState<ResizedImage[]>([])
+    const [activePlatformIndex, setActivePlatformIndex] = useState(0)
+    const [selectedPresets, setSelectedPresets] = useState<ActivePresetItem[]>([])
+    const [fitMode, setFitMode] = useState<'cover' | 'contain'>('cover')
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
-    const [activeTab, setActiveTab] = useState<'popular' | 'all'>('popular')
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [previewBlob, setPreviewBlob] = useState<Blob | null>(null)
+    const { success, error } = useToast()
 
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
+    if (initialFile && initialFile !== prevInitialFile) {
+        setPrevInitialFile(initialFile)
+        setFile(initialFile)
+        setPreviewBlob(null)
+    }
 
+    const currentPreset = selectedPresets[0]
+    const effectivePreview = file && currentPreset ? previewBlob : null
+
+    const originalUrl = useObjectUrl(file)
+    const previewUrl = useObjectUrl(effectivePreview)
+
+    const handleFile = useCallback((selectedFile: File) => {
         setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
+        setPreviewBlob(null)
+    }, [])
 
-        try {
-            const info = await getImageInfo(selectedFile)
+    // Read metadata and initialize default preset when file changes
+    useEffect(() => {
+        if (!file) return
+        let cancelled = false
+        void getImageInfo(file).then((info) => {
+            if (cancelled) return
             setOriginalInfo(info)
-        } catch (error) {
-            console.error('Error getting image info:', error)
+            const defaultPreset = platforms[0]?.presets[0]
+            if (defaultPreset) {
+                setSelectedPresets([{ platformName: platforms[0].name, preset: defaultPreset }])
+            }
+        }).catch(() => {
+            if (cancelled) return
+            setOriginalInfo(null)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [file])
+
+    // Render single preview when currentPreset changes
+    useEffect(() => {
+        if (!file || !currentPreset) return
+
+        let cancelled = false
+        const runPreview = async () => {
+            try {
+                const blob = await resizeImage(
+                    file,
+                    currentPreset.preset.width,
+                    currentPreset.preset.height,
+                    fitMode,
+                    { format: 'image/jpeg', quality: 0.9 }
+                )
+                if (!cancelled) setPreviewBlob(blob)
+            } catch {
+                // Ignore preview errors
+            }
         }
 
-        setResizedImages([])
-    }, [])
+        void runPreview()
+        return () => {
+            cancelled = true
+        }
+    }, [file, currentPreset, fitMode])
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Toggle preset selection
-    const togglePreset = (preset: SelectedPreset) => {
-        const key = `${preset.platform}-${preset.preset}`
-        const exists = selectedPresets.find(p => `${p.platform}-${p.preset}` === key)
+    const togglePreset = (platformName: string, preset: PlatformPreset) => {
+        const key = `${platformName}-${preset.name}`
+        const exists = selectedPresets.some(
+            (p) => `${p.platformName}-${p.preset.name}` === key
+        )
 
         if (exists) {
-            setSelectedPresets(selectedPresets.filter(p => `${p.platform}-${p.preset}` !== key))
+            if (selectedPresets.length > 1) {
+                setSelectedPresets((prev) =>
+                    prev.filter((p) => `${p.platformName}-${p.preset.name}` !== key)
+                )
+            }
         } else {
-            setSelectedPresets([...selectedPresets, preset])
+            setSelectedPresets((prev) => [...prev, { platformName, preset }])
         }
     }
 
-    // Check if preset is selected
-    const isPresetSelected = (platform: string, preset: string) => {
-        return selectedPresets.some(p => p.platform === platform && p.preset === preset)
+    const isPresetSelected = (platformName: string, presetName: string) => {
+        return selectedPresets.some(
+            (p) => p.platformName === platformName && p.preset.name === presetName
+        )
     }
 
-    // Process all selected presets
-    const handleGenerate = async () => {
-        if (!file || selectedPresets.length === 0) return
-
+    const handleDownloadSingle = async () => {
+        if (!file || !currentPreset) return
         setIsProcessing(true)
-        const results: ResizedImage[] = []
-
         try {
-            for (const preset of selectedPresets) {
-                const blob = await resizeImage(file, preset.width, preset.height, 'cover')
-                results.push({
-                    preset,
-                    blob,
-                    url: URL.createObjectURL(blob)
-                })
+            const blob = await resizeImage(
+                file,
+                currentPreset.preset.width,
+                currentPreset.preset.height,
+                fitMode,
+                { format: 'image/jpeg', quality: 0.92 }
+            )
+            const safeName = `${currentPreset.platformName}-${currentPreset.preset.name}`
+            const filename = buildOutputName(file.name, safeName, 'jpg')
+            downloadBlob(blob, filename)
+            success(`Downloaded ${currentPreset.preset.name}`)
+            if (onProduceFile) {
+                onProduceFile(new File([blob], filename, { type: 'image/jpeg' }))
             }
-            setResizedImages(results)
-        } catch (error) {
-            console.error('Error resizing images:', error)
-            alert('Error processing images')
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Resize failed')
         } finally {
             setIsProcessing(false)
         }
     }
 
-    // Download single image
-    const handleDownloadSingle = (image: ResizedImage) => {
-        const baseName = file?.name.replace(/\.[^/.]+$/, '') || 'image'
-        const filename = `${baseName}_${image.preset.platform}_${image.preset.preset.replace(/\s+/g, '_')}.${getExtension(image.blob.type)}`
-        downloadBlob(image.blob, filename)
-    }
+    const handleDownloadAllZip = async () => {
+        if (!file || selectedPresets.length === 0) return
+        setIsProcessing(true)
+        try {
+            const { default: JSZip } = await import('jszip')
+            const zip = new JSZip()
 
-    // Download all as ZIP
-    const handleDownloadAll = async () => {
-        if (resizedImages.length === 0) return
+            for (const item of selectedPresets) {
+                const blob = await resizeImage(
+                    file,
+                    item.preset.width,
+                    item.preset.height,
+                    fitMode,
+                    { format: 'image/jpeg', quality: 0.92 }
+                )
+                const safeName = `${item.platformName}_${item.preset.name.replace(/\s+/g, '_')}_${item.preset.width}x${item.preset.height}.jpg`
+                zip.file(safeName, blob)
+            }
 
-        const { default: JSZip } = await import('jszip')
-        const zip = new JSZip()
-        const baseName = file?.name.replace(/\.[^/.]+$/, '') || 'image'
-
-        for (const image of resizedImages) {
-            const filename = `${image.preset.platform}_${image.preset.preset.replace(/\s+/g, '_')}.${getExtension(image.blob.type)}`
-            zip.file(filename, image.blob)
+            const zipBlob = await zip.generateAsync({ type: 'blob' })
+            downloadBlob(zipBlob, buildOutputName(file.name, 'social-pack', 'zip'))
+            success(`Exported ZIP with ${selectedPresets.length} presets!`)
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'ZIP generation failed')
+        } finally {
+            setIsProcessing(false)
         }
-
-        const content = await zip.generateAsync({ type: 'blob' })
-        downloadBlob(content, `${baseName}_social_media_images.zip`)
     }
 
-    // Reset
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
-        resizedImages.forEach(img => URL.revokeObjectURL(img.url))
-
         setFile(null)
-        setPreview(null)
         setOriginalInfo(null)
+        setPreviewBlob(null)
         setSelectedPresets([])
-        setResizedImages([])
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
-    const popularPresets = getPopularPresets()
+    const handleTrySample = async () => {
+        const sample = await getSampleImageFile()
+        handleFile(sample)
+    }
 
-    return (
-        <div className="tool-page">
-            <div className="tool-header">
-                <button className="back-button" onClick={onBack}>←</button>
-                <h1 className="tool-title">Social Media Resizer</h1>
+    const header = (
+        <ToolHeader
+            title="Social Media Resizer"
+            icon={<Maximize2 size={16} />}
+            onBack={onBack}
+            onReset={file ? handleReset : undefined}
+        />
+    )
+
+    if (!file) {
+        return (
+            <WorkspaceLayout
+                header={header}
+                controls={
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', lineHeight: 'var(--line-height-relaxed)' }}>
+                        <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+                            Pixel-Perfect Social Formats
+                        </p>
+                        <p>
+                            Instantly adapt your images for Instagram posts, Stories, YouTube banners, LinkedIn covers, and Twitter/X cards.
+                        </p>
+                    </div>
+                }
+                canvas={
+                    <div style={{ width: '100%', maxWidth: 640 }}>
+                        <Dropzone
+                            onFiles={(files) => handleFile(files[0])}
+                            icon={<Maximize2 size={24} />}
+                            title="Drop image to resize for social platforms"
+                            hint="Supports JPEG, PNG, WebP up to 50 MB"
+                            onTrySample={handleTrySample}
+                        />
+                    </div>
+                }
+            />
+        )
+    }
+
+    const platform = platforms[activePlatformIndex] || platforms[0]
+
+    const controls = (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
+            <div className="rail-section">
+                <span className="rail-section-title">Source Image</span>
+                <FileChip
+                    name={file.name}
+                    sizeText={formatFileSize(file.size)}
+                    thumbnailUrl={originalUrl}
+                    onRemove={handleReset}
+                />
             </div>
 
-            {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">📱</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">Resize for Instagram, YouTube, LinkedIn, Twitter & more</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
-            ) : resizedImages.length === 0 ? (
-                <>
-                    {/* Image Preview */}
-                    <div className="image-preview-container">
-                        <img src={preview!} alt="Preview" className="image-preview" />
-                        <div className="image-info">
-                            <span className="info-badge">
-                                <span className="info-badge-label">Size:</span>
-                                <span className="info-badge-value">{originalInfo ? formatFileSize(originalInfo.size) : '-'}</span>
-                            </span>
-                            <span className="info-badge">
-                                <span className="info-badge-label">Dimensions:</span>
-                                <span className="info-badge-value">{originalInfo ? `${originalInfo.width}×${originalInfo.height}` : '-'}</span>
-                            </span>
-                        </div>
-                    </div>
+            <div className="rail-section">
+                <span className="rail-section-title">Fitting Mode</span>
+                <SegmentedControl
+                    options={[
+                        { value: 'cover', label: 'Cover (Fill & Crop)' },
+                        { value: 'contain', label: 'Contain (Fit all)' },
+                    ]}
+                    value={fitMode}
+                    onChange={(val) => setFitMode(val)}
+                />
+            </div>
 
-                    {/* Preset Selection */}
-                    <div className="controls-panel" style={{ marginTop: '1.5rem' }}>
-                        <div className="control-group">
-                            <div className="control-label">
-                                <span>Select Sizes ({selectedPresets.length} selected)</span>
-                                <div className="select-buttons">
-                                    <button
-                                        className={`select-button ${activeTab === 'popular' ? 'active' : ''}`}
-                                        onClick={() => setActiveTab('popular')}
-                                    >
-                                        Popular
-                                    </button>
-                                    <button
-                                        className={`select-button ${activeTab === 'all' ? 'active' : ''}`}
-                                        onClick={() => setActiveTab('all')}
-                                    >
-                                        All Platforms
-                                    </button>
-                                </div>
-                            </div>
-
-                            {activeTab === 'popular' ? (
-                                <div className="platforms-grid" style={{ marginTop: '1rem' }}>
-                                    {popularPresets.map((item) => (
-                                        <div
-                                            key={`${item.platform}-${item.preset}`}
-                                            className={`platform-card ${isPresetSelected(item.platform, item.preset) ? 'selected' : ''}`}
-                                            onClick={() => togglePreset(item)}
-                                        >
-                                            <div className="platform-icon">{item.icon}</div>
-                                            <div className="platform-name">{item.platform}</div>
-                                            <div className="platform-size">{item.preset}</div>
-                                            <div className="platform-size">{item.width}×{item.height}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div style={{ marginTop: '1rem' }}>
-                                    {platforms.map((platform) => (
-                                        <div key={platform.name} style={{ marginBottom: '1.5rem' }}>
-                                            <h4 style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                <span>{platform.icon}</span>
-                                                <span>{platform.name}</span>
-                                            </h4>
-                                            <div className="select-buttons">
-                                                {platform.presets.map((preset) => (
-                                                    <button
-                                                        key={preset.name}
-                                                        className={`select-button ${isPresetSelected(platform.name, preset.name) ? 'active' : ''}`}
-                                                        onClick={() => togglePreset({
-                                                            platform: platform.name,
-                                                            preset: preset.name,
-                                                            width: preset.width,
-                                                            height: preset.height,
-                                                            icon: platform.icon
-                                                        })}
-                                                        title={`${preset.width}×${preset.height} - ${preset.description}`}
-                                                    >
-                                                        {preset.name} ({preset.width}×{preset.height})
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="actions-bar">
-                        <button className="secondary-button" onClick={handleReset}>
-                            🔄 Upload New Image
-                        </button>
+            <div className="rail-section">
+                <span className="rail-section-title">Select Platform</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {platforms.map((p, idx) => (
                         <button
-                            className="download-button"
-                            onClick={handleGenerate}
-                            disabled={selectedPresets.length === 0 || isProcessing}
+                            key={p.name}
+                            type="button"
+                            className={`filter-chip ${idx === activePlatformIndex ? 'active' : ''}`}
+                            onClick={() => setActivePlatformIndex(idx)}
                         >
-                            {isProcessing ? '⏳ Processing...' : `✨ Generate ${selectedPresets.length} Image${selectedPresets.length !== 1 ? 's' : ''}`}
+                            <span>{p.name}</span>
                         </button>
-                    </div>
-                </>
-            ) : (
-                <>
-                    {/* Results */}
-                    <div className="results-grid">
-                        {resizedImages.map((image, index) => (
-                            <div key={index} className="result-card">
-                                <img src={image.url} alt={image.preset.preset} className="result-image" />
-                                <div className="result-title">
-                                    {image.preset.icon} {image.preset.platform}
-                                </div>
-                                <div className="result-dimensions">
-                                    {image.preset.preset} • {image.preset.width}×{image.preset.height}
-                                </div>
-                                <button
-                                    className="secondary-button"
-                                    onClick={() => handleDownloadSingle(image)}
-                                    style={{ marginTop: '0.75rem', width: '100%', justifyContent: 'center' }}
-                                >
-                                    ⬇️ Download
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="actions-bar">
-                        <button className="secondary-button" onClick={handleReset}>
-                            🔄 Start Over
-                        </button>
-                        <button className="download-button" onClick={handleDownloadAll}>
-                            📦 Download All as ZIP
-                        </button>
-                    </div>
-                </>
-            )}
-
-            {/* Processing Overlay */}
-            {isProcessing && (
-                <div className="processing-overlay">
-                    <div className="processing-content">
-                        <div className="processing-spinner" />
-                        <div className="processing-text">Generating Images...</div>
-                        <div className="processing-hint">This may take a moment</div>
-                    </div>
+                    ))}
                 </div>
+            </div>
+
+            <div className="rail-section">
+                <span className="rail-section-title">{platform.name} Presets</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {platform.presets.map((preset) => {
+                        const selected = isPresetSelected(platform.name, preset.name)
+                        return (
+                            <button
+                                key={preset.name}
+                                type="button"
+                                onClick={() => togglePreset(platform.name, preset)}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '8px 12px',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid',
+                                    borderColor: selected ? 'var(--color-accent)' : 'var(--color-border-default)',
+                                    backgroundColor: selected ? 'var(--color-accent-subtle)' : 'var(--color-bg-surface)',
+                                    color: 'var(--color-text-primary)',
+                                    textAlign: 'left',
+                                    transition: 'all var(--transition-fast)',
+                                }}
+                            >
+                                <div>
+                                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)' }}>
+                                        {preset.name}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                                        {preset.description}
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span className="tabular-nums" style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                                        {preset.width} × {preset.height}
+                                    </span>
+                                    {selected && <Check size={14} style={{ color: 'var(--color-accent)' }} />}
+                                </div>
+                            </button>
+                        )
+                    })}
+                </div>
+            </div>
+        </div>
+    )
+
+    const canvas = (
+        <div style={{ width: '100%', maxWidth: 840, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {previewUrl ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                    <img
+                        src={previewUrl}
+                        alt="Resized Preview"
+                        className="workspace-canvas-preview checkerboard-pattern"
+                        style={{ border: '1px solid var(--color-border-default)' }}
+                    />
+                    {currentPreset && (
+                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                            Previewing: <strong style={{ color: 'var(--color-text-primary)' }}>{currentPreset.platformName} {currentPreset.preset.name}</strong> ({currentPreset.preset.width} × {currentPreset.preset.height} px)
+                        </div>
+                    )}
+                </div>
+            ) : (
+                originalUrl && (
+                    <img src={originalUrl} alt="Original" className="workspace-canvas-preview" />
+                )
             )}
         </div>
+    )
+
+    const actionBar = (
+        <>
+            <div className="actionbar-left">
+                <div className="stat-tiles-row">
+                    <StatTile
+                        label="Selected Presets"
+                        value={selectedPresets.length}
+                    />
+                    {currentPreset && (
+                        <StatTile
+                            label="Target Dimensions"
+                            value={`${currentPreset.preset.width} × ${currentPreset.preset.height}`}
+                        />
+                    )}
+                    {originalInfo && (
+                        <StatTile
+                            label="Source"
+                            value={`${originalInfo.width} × ${originalInfo.height}`}
+                        />
+                    )}
+                </div>
+            </div>
+
+            <div className="actionbar-right">
+                {selectedPresets.length > 1 && (
+                    <Button
+                        variant="secondary"
+                        size="md"
+                        icon={<Archive size={16} />}
+                        onClick={handleDownloadAllZip}
+                        isLoading={isProcessing}
+                    >
+                        Download All as ZIP ({selectedPresets.length})
+                    </Button>
+                )}
+                <Button
+                    variant="primary"
+                    size="md"
+                    icon={<Download size={16} />}
+                    onClick={handleDownloadSingle}
+                    isLoading={isProcessing}
+                >
+                    Download {currentPreset?.preset.name || 'Image'}
+                </Button>
+            </div>
+        </>
+    )
+
+    return (
+        <WorkspaceLayout
+            header={header}
+            controls={controls}
+            canvas={canvas}
+            actionBar={actionBar}
+        />
     )
 }

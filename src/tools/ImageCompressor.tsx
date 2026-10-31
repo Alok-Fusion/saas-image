@@ -1,284 +1,301 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { buildOutputName, compressImage, downloadBlob, formatFileSize, getExtension, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { Download, Minimize2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import Button from '../components/Button'
+import CompareView from '../components/CompareView'
+import Dropzone from '../components/Dropzone'
+import FileChip from '../components/FileChip'
+import SegmentedControl from '../components/SegmentedControl'
+import Slider from '../components/Slider'
+import StatTile from '../components/StatTile'
+import ToolHeader from '../components/ToolHeader'
+import WorkspaceLayout from '../components/WorkspaceLayout'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import {
+    buildOutputName,
+    compressImage,
+    downloadBlob,
+    formatFileSize,
+    getExtension,
+    getImageInfo,
+    type ImageInfo,
+    type OutputMime,
+} from '../utils/imageProcessing'
+import { getSampleImageFile } from '../utils/sampleImage'
 
 interface ImageCompressorProps {
     onBack: () => void
+    initialFile?: File | null
+    onProduceFile?: (file: File) => void
 }
 
-type Format = 'image/jpeg' | 'image/png' | 'image/webp'
+const FORMAT_OPTIONS: { value: OutputMime; label: string }[] = [
+    { value: 'image/jpeg', label: 'JPEG' },
+    { value: 'image/webp', label: 'WebP' },
+    { value: 'image/png', label: 'PNG' },
+]
 
-export default function ImageCompressor({ onBack }: ImageCompressorProps) {
-    const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
+export default function ImageCompressor({
+    onBack,
+    initialFile,
+    onProduceFile,
+}: ImageCompressorProps) {
+    const [file, setFile] = useState<File | null>(() => initialFile ?? null)
+    const [prevInitialFile, setPrevInitialFile] = useState<File | null>(initialFile ?? null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
     const [quality, setQuality] = useState(80)
-    const [format, setFormat] = useState<Format>('image/jpeg')
+    const [format, setFormat] = useState<OutputMime>('image/jpeg')
     const [compressedBlob, setCompressedBlob] = useState<Blob | null>(null)
-    const [compressedPreview, setCompressedPreview] = useState<string | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
     const [useOriginal, setUseOriginal] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
 
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
-
-        setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
-
-        try {
-            const info = await getImageInfo(selectedFile)
-            setOriginalInfo(info)
-        } catch (error) {
-            console.error('Error getting image info:', error)
-        }
-
-        // Reset compressed state
+    if (initialFile && initialFile !== prevInitialFile) {
+        setPrevInitialFile(initialFile)
+        setFile(initialFile)
         setCompressedBlob(null)
-        setCompressedPreview(null)
+        setUseOriginal(false)
+    }
+
+    const originalUrl = useObjectUrl(file)
+    const compressedUrl = useObjectUrl(compressedBlob)
+
+    const handleFile = useCallback((selectedFile: File) => {
+        setFile(selectedFile)
+        setCompressedBlob(null)
         setUseOriginal(false)
     }, [])
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
+    // Read metadata when file changes
+    useEffect(() => {
+        if (!file) return
+        let cancelled = false
+        void getImageInfo(file).then((info) => {
+            if (cancelled) return
+            setOriginalInfo(info)
+            if (file.type === 'image/webp') setFormat('image/webp')
+            else if (file.type === 'image/png') setFormat('image/png')
+            else setFormat('image/jpeg')
+        }).catch((error) => {
+            console.error('Error reading image info:', error)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [file])
 
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Compress image when quality or format changes
+    // Compress whenever file, quality, or format changes
     useEffect(() => {
         if (!file) return
 
         let cancelled = false
 
-        const processImage = async () => {
+        const timer = setTimeout(async () => {
             setIsProcessing(true)
             try {
                 const result = await compressImage(file, quality, format)
                 if (cancelled) return
-                setUseOriginal(false)
+                setUseOriginal(result.isLarger)
                 setCompressedBlob(result.blob)
-                setCompressedPreview(prev => {
-                    if (prev) URL.revokeObjectURL(prev)
-                    return URL.createObjectURL(result.blob)
-                })
+
+                if (onProduceFile) {
+                    const ext = getExtension(format)
+                    const producedFile = new File([result.blob], buildOutputName(file.name, 'compressed', ext), { type: format })
+                    onProduceFile(producedFile)
+                }
             } catch (error) {
-                console.error('Error compressing image:', error)
+                console.error('Compression failed:', error)
             } finally {
                 if (!cancelled) setIsProcessing(false)
             }
-        }
+        }, 220)
 
-        const debounce = setTimeout(processImage, 300)
         return () => {
             cancelled = true
-            clearTimeout(debounce)
+            clearTimeout(timer)
         }
-    }, [file, quality, format])
+    }, [file, quality, format, onProduceFile])
 
-    // Download compressed image
     const handleDownload = () => {
-        if (!compressedBlob || !file) return
-
-        if (useOriginal) {
+        if (!file) return
+        if (useOriginal || !compressedBlob) {
             downloadBlob(file, file.name)
             return
         }
-        const extension = getExtension(format)
-        downloadBlob(compressedBlob, buildOutputName(file.name, 'compressed', extension))
+        const ext = getExtension(format)
+        downloadBlob(compressedBlob, buildOutputName(file.name, 'compressed', ext))
     }
 
-    // Reset and upload new image
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
-        if (compressedPreview) URL.revokeObjectURL(compressedPreview)
         setFile(null)
-        setPreview(null)
         setOriginalInfo(null)
         setCompressedBlob(null)
-        setCompressedPreview(null)
         setUseOriginal(false)
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
-    const isLarger = !!(originalInfo && compressedBlob && compressedBlob.size > originalInfo.size)
+    const handleTrySample = async () => {
+        const sample = await getSampleImageFile()
+        void handleFile(sample)
+    }
 
-    // Calculate compression percentage
-    const compressionPercent = originalInfo && compressedBlob
-        ? Math.round((1 - compressedBlob.size / originalInfo.size) * 100)
-        : 0
+    // Calculations
+    const originalSize = file?.size ?? 0
+    const compressedSize = compressedBlob?.size ?? 0
+    const savedBytes = originalSize - compressedSize
+    const savedPct = originalSize > 0 ? Math.round((savedBytes / originalSize) * 100) : 0
+    const isLarger = compressedSize > originalSize
 
-    return (
-        <div className="tool-page">
-            <div className="tool-header">
-                <button className="back-button" onClick={onBack}>←</button>
-                <h1 className="tool-title">Image Compressor</h1>
+    const header = (
+        <ToolHeader
+            title="Image Compressor"
+            icon={<Minimize2 size={16} />}
+            onBack={onBack}
+            onReset={file ? handleReset : undefined}
+        />
+    )
+
+    if (!file) {
+        return (
+            <WorkspaceLayout
+                header={header}
+                controls={
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', lineHeight: 'var(--line-height-relaxed)' }}>
+                        <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+                            Client-Side Compression
+                        </p>
+                        <p>
+                            Reduce image payload sizes for web, email, or apps while maintaining visual quality. Everything executes entirely inside your browser tab.
+                        </p>
+                    </div>
+                }
+                canvas={
+                    <div style={{ width: '100%', maxWidth: 640 }}>
+                        <Dropzone
+                            onFiles={(files) => handleFile(files[0])}
+                            icon={<Minimize2 size={24} />}
+                            title="Drop image to compress, click to browse, or paste"
+                            hint="Supports JPEG, PNG, WebP up to 50 MB"
+                            onTrySample={handleTrySample}
+                        />
+                    </div>
+                }
+            />
+        )
+    }
+
+    const controls = (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
+            <div className="rail-section">
+                <span className="rail-section-title">Source File</span>
+                <FileChip
+                    name={file.name}
+                    sizeText={formatFileSize(originalSize)}
+                    thumbnailUrl={originalUrl}
+                    onRemove={handleReset}
+                />
             </div>
 
-            {!file ? (
-                // Upload dropzone
+            <div className="rail-section">
+                <span className="rail-section-title">Output Format</span>
+                <SegmentedControl
+                    options={FORMAT_OPTIONS}
+                    value={format}
+                    onChange={(val) => setFormat(val)}
+                />
+            </div>
+
+            <div className="rail-section">
+                <span className="rail-section-title">Compression Quality</span>
+                <Slider
+                    label="Quality Level"
+                    value={quality}
+                    min={10}
+                    max={100}
+                    step={1}
+                    unit="%"
+                    onChange={setQuality}
+                />
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: -6 }}>
+                    {quality > 85 ? 'High quality, larger file' : quality < 60 ? 'Maximum compression, visible loss' : 'Balanced visual quality and file savings'}
+                </span>
+            </div>
+
+            {isLarger && (
                 <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
+                    style={{
+                        padding: 'var(--spacing-3)',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--color-warning-subtle)',
+                        border: '1px solid var(--color-warning)',
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--color-text-primary)',
+                        lineHeight: 'var(--line-height-normal)',
+                    }}
                 >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">📦</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">Supports JPG, PNG, WEBP • Max 50MB</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
+                    ⚠️ Compressed output is larger than source. We recommend keeping the original file.
                 </div>
-            ) : (
-                <>
-                    {/* Controls */}
-                    <div className="controls-panel">
-                        <div className="control-group">
-                            <label className="control-label">
-                                <span>Compression Quality</span>
-                                <span className="control-value">{quality}%</span>
-                            </label>
-                            <div className="slider-container">
-                                <div className="slider-fill" style={{ width: `${quality}%` }} />
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="100"
-                                    value={quality}
-                                    onChange={(e) => setQuality(Number(e.target.value))}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="control-group">
-                            <label className="control-label">
-                                <span>Output Format</span>
-                            </label>
-                            <div className="select-buttons">
-                                <button
-                                    className={`select-button ${format === 'image/jpeg' ? 'active' : ''}`}
-                                    onClick={() => setFormat('image/jpeg')}
-                                >
-                                    JPEG
-                                </button>
-                                <button
-                                    className={`select-button ${format === 'image/png' ? 'active' : ''}`}
-                                    onClick={() => setFormat('image/png')}
-                                >
-                                    PNG
-                                </button>
-                                <button
-                                    className={`select-button ${format === 'image/webp' ? 'active' : ''}`}
-                                    onClick={() => setFormat('image/webp')}
-                                >
-                                    WEBP
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Comparison View */}
-                    <div className="comparison-container">
-                        <div className="comparison-panel">
-                            <div className="comparison-label">Original</div>
-                            {preview && (
-                                <img src={preview} alt="Original" className="comparison-image" />
-                            )}
-                            <div className="comparison-stats">
-                                <div className="stat">
-                                    <div className="stat-value">{originalInfo ? formatFileSize(originalInfo.size) : '-'}</div>
-                                    <div className="stat-label">File Size</div>
-                                </div>
-                                <div className="stat">
-                                    <div className="stat-value">{originalInfo ? `${originalInfo.width}×${originalInfo.height}` : '-'}</div>
-                                    <div className="stat-label">Dimensions</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="comparison-panel">
-                            <div className="comparison-label">
-                                {useOriginal ? 'Original (kept)' : 'Compressed'}{isProcessing && ' (Processing...)'}
-                            </div>
-                            {(useOriginal ? preview : compressedPreview) && (
-                                <img src={useOriginal ? preview! : compressedPreview!} alt={useOriginal ? 'Original' : 'Compressed'} className="comparison-image" />
-                            )}
-                            <div className="comparison-stats">
-                                <div className="stat">
-                                    <div className="stat-value">
-                                        {useOriginal
-                                            ? (originalInfo ? formatFileSize(originalInfo.size) : '-')
-                                            : (compressedBlob ? formatFileSize(compressedBlob.size) : '-')}
-                                    </div>
-                                    <div className="stat-label">File Size</div>
-                                </div>
-                                <div className="stat">
-                                    <div className={`stat-value ${compressionPercent > 0 ? 'success' : ''}`}>
-                                        {useOriginal ? '0%' : compressionPercent > 0 ? `-${compressionPercent}%` : compressionPercent < 0 ? `+${Math.abs(compressionPercent)}%` : '-'}
-                                    </div>
-                                    <div className="stat-label">Size Change</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {isLarger && !isProcessing && (
-                        <div className="error-banner" style={{ marginTop: '1.5rem' }} role="status">
-                            <span>
-                                {useOriginal
-                                    ? 'Downloading the original file instead (no size savings).'
-                                    : `This encoding is ${formatFileSize(compressedBlob!.size)} — larger than the original ${formatFileSize(originalInfo!.size)}.`}
-                            </span>
-                            <button
-                                className="secondary-button"
-                                style={{ marginLeft: 'auto', padding: '0.4rem 0.9rem' }}
-                                onClick={() => setUseOriginal(prev => !prev)}
-                            >
-                                {useOriginal ? 'Use compressed' : 'Use original instead'}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="actions-bar">
-                        <button className="secondary-button" onClick={handleReset}>
-                            🔄 Start over
-                        </button>
-                        <button
-                            className="download-button"
-                            onClick={handleDownload}
-                            disabled={!compressedBlob || isProcessing}
-                        >
-                            ⬇️ {useOriginal ? 'Download Original' : 'Download Compressed Image'}
-                        </button>
-                    </div>
-                </>
             )}
         </div>
+    )
+
+    const canvas = (
+        <div style={{ width: '100%', maxWidth: 900, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {originalUrl && compressedUrl ? (
+                <CompareView
+                    beforeSrc={originalUrl}
+                    afterSrc={compressedUrl}
+                    beforeLabel="Original"
+                    afterLabel={`Compressed (${formatFileSize(compressedSize)})`}
+                />
+            ) : (
+                originalUrl && (
+                    <img
+                        src={originalUrl}
+                        alt="Preview"
+                        className="workspace-canvas-preview"
+                    />
+                )
+            )}
+        </div>
+    )
+
+    const actionBar = (
+        <>
+            <div className="actionbar-left">
+                <div className="stat-tiles-row">
+                    <StatTile label="Original" value={formatFileSize(originalSize)} />
+                    <StatTile
+                        label="Compressed"
+                        value={compressedSize > 0 ? formatFileSize(compressedSize) : '…'}
+                        delta={savedPct > 0 ? `-${savedPct}%` : undefined}
+                    />
+                    {originalInfo && (
+                        <StatTile
+                            label="Dimensions"
+                            value={`${originalInfo.width} × ${originalInfo.height}`}
+                        />
+                    )}
+                </div>
+            </div>
+
+            <div className="actionbar-right">
+                <Button
+                    variant="primary"
+                    size="md"
+                    icon={<Download size={16} />}
+                    onClick={handleDownload}
+                    isLoading={isProcessing}
+                >
+                    {useOriginal ? 'Download Original' : `Download ${getExtension(format).toUpperCase()}`}
+                </Button>
+            </div>
+        </>
+    )
+
+    return (
+        <WorkspaceLayout
+            header={header}
+            controls={controls}
+            canvas={canvas}
+            actionBar={actionBar}
+        />
     )
 }

@@ -1,6 +1,15 @@
+import { Download, Eraser, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Button from '../components/Button'
+import CompareView from '../components/CompareView'
 import Dropzone from '../components/Dropzone'
+import FileChip from '../components/FileChip'
+import ProgressBar from '../components/ProgressBar'
+import StatTile from '../components/StatTile'
+import Toggle from '../components/Toggle'
+import ToolHeader from '../components/ToolHeader'
 import { useToast } from '../components/Toast'
+import WorkspaceLayout from '../components/WorkspaceLayout'
 import { useObjectUrl } from '../hooks/useObjectUrl'
 import {
     applyBackground,
@@ -10,35 +19,44 @@ import {
     getImageInfo,
     type ImageInfo,
 } from '../utils/imageProcessing'
+import { getSampleImageFile } from '../utils/sampleImage'
 
 interface BackgroundRemoverProps {
     onBack: () => void
+    initialFile?: File | null
+    onProduceFile?: (file: File) => void
 }
 
-export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
-    const [file, setFile] = useState<File | null>(null)
+export default function BackgroundRemover({
+    onBack,
+    initialFile,
+    onProduceFile,
+}: BackgroundRemoverProps) {
+    const [file, setFile] = useState<File | null>(initialFile ?? null)
+    const [prevInitialFile, setPrevInitialFile] = useState<File | null>(initialFile ?? null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
     const [processedBlob, setProcessedBlob] = useState<Blob | null>(null)
+    const [finalBlob, setFinalBlob] = useState<Blob | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [progress, setProgress] = useState(0)
-    const [showOriginal, setShowOriginal] = useState(false)
-    const [backgroundColor, setBackgroundColor] = useState('#ffffff')
+    const [stageText, setStageText] = useState('Preparing…')
     const [applyBg, setApplyBg] = useState(false)
-    const [finalBlob, setFinalBlob] = useState<Blob | null>(null)
+    const [backgroundColor, setBackgroundColor] = useState('#ffffff')
     const runIdRef = useRef(0)
     const bgRunIdRef = useRef(0)
-    const preview = useObjectUrl(file)
-    const finalPreview = useObjectUrl(finalBlob)
-    const { error } = useToast()
+    const { success, error } = useToast()
 
-    useEffect(() => {
-        if (!file) return
-        let active = true
-        getImageInfo(file)
-            .then((info) => { if (active) setOriginalInfo(info) })
-            .catch((err) => { if (active) error(err instanceof Error ? err.message : 'Could not read the image') })
-        return () => { active = false }
-    }, [error, file])
+    if (initialFile && initialFile !== prevInitialFile) {
+        setPrevInitialFile(initialFile)
+        setFile(initialFile)
+        setProcessedBlob(null)
+        setFinalBlob(null)
+        setProgress(0)
+        setApplyBg(false)
+    }
+
+    const originalUrl = useObjectUrl(file)
+    const finalUrl = useObjectUrl(finalBlob)
 
     const handleFile = useCallback((selectedFile: File) => {
         runIdRef.current += 1
@@ -50,29 +68,58 @@ export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
         setApplyBg(false)
     }, [])
 
+    useEffect(() => {
+        if (!file) return
+        let cancelled = false
+        void getImageInfo(file).then((info) => {
+            if (cancelled) return
+            setOriginalInfo(info)
+        }).catch(() => {
+            if (cancelled) return
+            setOriginalInfo(null)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [file])
+
     const handleRemoveBackground = async () => {
         if (!file || isProcessing) return
 
         const runId = ++runIdRef.current
         setIsProcessing(true)
         setProgress(0)
+        setStageText('Downloading neural net model (first run ~30 MB)…')
 
         try {
             const { removeBackground } = await import('@imgly/background-removal')
             const blob = await removeBackground(file, {
-                progress: (_key, current, total) => {
-                    if (runIdRef.current === runId && total > 0) {
+                progress: (key, current, total) => {
+                    if (runIdRef.current !== runId) return
+                    if (key.includes('fetch')) {
+                        setStageText(`Loading model weights (${Math.round((current / (1024 * 1024)))} MB)…`)
+                    } else if (key.includes('compute')) {
+                        setStageText('Analyzing image segmentation…')
+                    }
+                    if (total > 0) {
                         setProgress(Math.round((current / total) * 100))
                     }
-                }
+                },
             })
+
             if (runIdRef.current !== runId) return
             setProcessedBlob(blob)
             setFinalBlob(blob)
             setProgress(100)
+            success('Background removed successfully!')
+
+            if (onProduceFile) {
+                const produced = new File([blob], buildOutputName(file.name, 'nobg', 'png'), { type: 'image/png' })
+                onProduceFile(produced)
+            }
         } catch (err) {
             if (runIdRef.current === runId) {
-                error(err instanceof Error ? err.message : 'Could not remove the background')
+                error(err instanceof Error ? err.message : 'Could not remove background. Check connection for model download.')
             }
         } finally {
             if (runIdRef.current === runId) setIsProcessing(false)
@@ -91,243 +138,207 @@ export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
             if (bgRunIdRef.current === runId) setFinalBlob(blob)
         } catch (err) {
             if (bgRunIdRef.current === runId) {
-                error(err instanceof Error ? err.message : 'Could not apply the background colour')
+                error(err instanceof Error ? err.message : 'Failed to apply background color')
             }
         }
     }, [error, processedBlob])
 
-    const handleApplyBackground = (color: string) => {
-        setBackgroundColor(color)
-        if (applyBg) void updateFinalBackground(true, color)
-    }
-
-    const handleToggleBackground = (enabled: boolean) => {
+    const handleToggleBg = (enabled: boolean) => {
         setApplyBg(enabled)
         void updateFinalBackground(enabled, backgroundColor)
     }
 
+    const handleColorChange = (color: string) => {
+        setBackgroundColor(color)
+        if (applyBg) void updateFinalBackground(true, color)
+    }
+
     const handleDownload = () => {
         if (!finalBlob || !file) return
-        const extension = finalBlob.type === 'image/jpeg' ? 'jpg' : 'png'
-        downloadBlob(finalBlob, buildOutputName(file.name, 'no-background', extension))
+        const ext = applyBg ? 'jpg' : 'png'
+        const filename = buildOutputName(file.name, 'nobg', ext)
+        downloadBlob(finalBlob, filename)
     }
 
     const handleReset = () => {
         runIdRef.current += 1
-        bgRunIdRef.current += 1
         setFile(null)
         setOriginalInfo(null)
         setProcessedBlob(null)
         setFinalBlob(null)
+        setIsProcessing(false)
         setProgress(0)
-        setApplyBg(false)
     }
 
-    return (
-        <div className="tool-page">
-            <div className="tool-header">
-                <button className="back-button" onClick={onBack}>←</button>
-                <h1 className="tool-title">Background Remover</h1>
+    const handleTrySample = async () => {
+        const sample = await getSampleImageFile()
+        void handleFile(sample)
+    }
+
+    const header = (
+        <ToolHeader
+            title="Background Remover"
+            icon={<Eraser size={16} />}
+            onBack={onBack}
+            onReset={file ? handleReset : undefined}
+        />
+    )
+
+    if (!file) {
+        return (
+            <WorkspaceLayout
+                header={header}
+                controls={
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', lineHeight: 'var(--line-height-relaxed)' }}>
+                        <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+                            Client-Side AI Segmentation
+                        </p>
+                        <p>
+                            Isolates people, products, or subjects using machine learning running directly in WebAssembly inside your browser. No files are ever sent to an external server.
+                        </p>
+                    </div>
+                }
+                canvas={
+                    <div style={{ width: '100%', maxWidth: 640 }}>
+                        <Dropzone
+                            onFiles={(files) => handleFile(files[0])}
+                            icon={<Eraser size={24} />}
+                            title="Drop image to remove background"
+                            hint="Works best on portraits, products, and animals"
+                            onTrySample={handleTrySample}
+                        />
+                    </div>
+                }
+            />
+        )
+    }
+
+    const controls = (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
+            <div className="rail-section">
+                <span className="rail-section-title">Source File</span>
+                <FileChip
+                    name={file.name}
+                    sizeText={formatFileSize(file.size)}
+                    thumbnailUrl={originalUrl}
+                    onRemove={handleReset}
+                />
             </div>
 
-            {!file ? (
-                <Dropzone
-                    onFiles={(files) => handleFile(files[0])}
-                    icon="🎭"
-                    title="Drop your image here or click to browse"
-                    hint="AI-powered background removal • Works best with clear subjects"
-                />
-            ) : !processedBlob ? (
-                <>
-                    {/* Original Image Preview */}
-                    <div className="image-preview-container">
-                        {preview && <img src={preview} alt="Original" className="image-preview" />}
-                        <div className="image-info">
-                            <span className="info-badge">
-                                <span className="info-badge-label">Size:</span>
-                                <span className="info-badge-value">{originalInfo ? formatFileSize(originalInfo.size) : '-'}</span>
-                            </span>
-                            <span className="info-badge">
-                                <span className="info-badge-label">Dimensions:</span>
-                                <span className="info-badge-value">{originalInfo ? `${originalInfo.width}×${originalInfo.height}` : '-'}</span>
-                            </span>
-                        </div>
+            <div className="rail-section">
+                <span className="rail-section-title">AI Isolation</span>
+                {!processedBlob ? (
+                    <Button
+                        variant="primary"
+                        size="md"
+                        icon={<Sparkles size={16} />}
+                        onClick={handleRemoveBackground}
+                        isLoading={isProcessing}
+                    >
+                        {isProcessing ? 'Removing Background…' : 'Remove Background'}
+                    </Button>
+                ) : (
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        ✓ Background removed
                     </div>
+                )}
+            </div>
 
-                    {/* Action Buttons */}
-                    <div className="actions-bar">
-                        <button className="secondary-button" onClick={handleReset}>
-                            🔄 Upload New Image
-                        </button>
-                        <button
-                            className="download-button"
-                            onClick={handleRemoveBackground}
-                            disabled={isProcessing}
-                        >
-                            {isProcessing ? `⏳ Processing... ${progress}%` : '🎭 Remove Background'}
-                        </button>
-                    </div>
-
-                    {/* Info note */}
-                    <div style={{
-                        marginTop: '1.5rem',
-                        padding: '1rem',
-                        background: 'rgba(102, 126, 234, 0.1)',
-                        borderRadius: '12px',
-                        textAlign: 'center',
-                        color: 'rgba(255,255,255,0.7)',
-                        fontSize: '0.875rem'
-                    }}>
-                        ℹ️ First-time use downloads AI model (~50MB). Processing happens locally in your browser.
-                    </div>
-                </>
-            ) : (
-                <>
-                    {/* Comparison View */}
-                    <div className="comparison-container">
-                        <div className="comparison-panel">
-                            <div className="comparison-label">Original</div>
-                            {preview && <img src={preview} alt="Original" className="comparison-image" />}
-                        </div>
-
-                        <div className="comparison-panel">
-                            <div className="comparison-label">
-                                {showOriginal ? 'Original' : 'Background Removed'}
-                            </div>
-                            <div className={!applyBg && !showOriginal ? 'checkered-bg' : ''} style={{ borderRadius: '12px', overflow: 'hidden' }}>
-                                {(showOriginal ? preview : finalPreview) && (
-                                    <img
-                                        src={showOriginal ? preview! : finalPreview!}
-                                        alt="Processed"
-                                        className="comparison-image"
-                                        style={{ display: 'block' }}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Controls */}
-                    <div className="controls-panel" style={{ marginTop: '1.5rem' }}>
-                        <div className="control-group">
-                            <label className="control-label">
-                                <span>Toggle Original</span>
-                            </label>
-                            <div className="toggle-container">
-                                <span style={{ color: showOriginal ? '#667eea' : 'rgba(255,255,255,0.5)' }}>Compare with original</span>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={showOriginal}
-                                    aria-label="Compare with original"
-                                    className={`toggle ${showOriginal ? 'active' : ''}`}
-                                    onClick={() => setShowOriginal(!showOriginal)}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="control-group" style={{ marginTop: '1.5rem' }}>
-                            <label className="control-label">
-                                <span>Add Background Color</span>
-                            </label>
-                            <div className="toggle-container" style={{ marginBottom: '1rem' }}>
-                                <span style={{ color: applyBg ? '#667eea' : 'rgba(255,255,255,0.5)' }}>Apply solid color background</span>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={applyBg}
-                                    aria-label="Apply solid color background"
-                                    className={`toggle ${applyBg ? 'active' : ''}`}
-                                    onClick={() => handleToggleBackground(!applyBg)}
-                                />
-                            </div>
-                            {applyBg && (
-                                <div className="color-picker-container">
-                                    <input
-                                        type="color"
-                                        value={backgroundColor}
-                                        onChange={(e) => handleApplyBackground(e.target.value)}
-                                        className="color-picker"
-                                    />
-                                    <div className="select-buttons">
-                                        <button
-                                            className="select-button"
-                                            onClick={() => handleApplyBackground('#ffffff')}
-                                            style={{ background: '#ffffff', color: '#000' }}
-                                        >
-                                            White
-                                        </button>
-                                        <button
-                                            className="select-button"
-                                            onClick={() => handleApplyBackground('#000000')}
-                                            style={{ background: '#000000' }}
-                                        >
-                                            Black
-                                        </button>
-                                        <button
-                                            className="select-button"
-                                            onClick={() => handleApplyBackground('#667eea')}
-                                            style={{ background: '#667eea' }}
-                                        >
-                                            Purple
-                                        </button>
-                                        <button
-                                            className="select-button"
-                                            onClick={() => handleApplyBackground('#38ef7d')}
-                                            style={{ background: '#38ef7d', color: '#000' }}
-                                        >
-                                            Green
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="actions-bar">
-                        <button className="secondary-button" onClick={handleReset}>
-                            🔄 Upload New Image
-                        </button>
-                        <button className="download-button" onClick={handleDownload}>
-                            ⬇️ Download {applyBg ? 'JPG' : 'PNG (Transparent)'}
-                        </button>
-                    </div>
-                </>
+            {isProcessing && (
+                <div className="rail-section">
+                    <ProgressBar
+                        progress={progress}
+                        stageText={stageText}
+                        onCancel={() => {
+                            runIdRef.current += 1
+                            setIsProcessing(false)
+                        }}
+                    />
+                </div>
             )}
 
-            {/* Processing Overlay */}
-            {isProcessing && (
-                <div className="processing-overlay">
-                    <div className="processing-content">
-                        <div className="processing-spinner" />
-                        <div className="processing-text">Removing Background...</div>
-                        <div className="processing-hint">
-                            {progress < 30 ? 'Loading AI model...' :
-                                progress < 70 ? 'Analyzing image...' :
-                                    progress < 90 ? 'Removing background...' :
-                                        'Finishing up...'}
+            {processedBlob && (
+                <div className="rail-section">
+                    <span className="rail-section-title">Background Style</span>
+                    <Toggle
+                        label="Solid Color Background"
+                        description="Replace transparent cutout with a solid backdrop"
+                        checked={applyBg}
+                        onChange={handleToggleBg}
+                    />
+                    {applyBg && (
+                        <div style={{ marginTop: 'var(--spacing-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                                type="color"
+                                value={backgroundColor}
+                                onChange={(e) => handleColorChange(e.target.value)}
+                                className="color-picker"
+                            />
+                            <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'var(--font-mono)' }}>
+                                {backgroundColor}
+                            </span>
                         </div>
-                        <div style={{
-                            marginTop: '1rem',
-                            width: '200px',
-                            height: '8px',
-                            background: 'rgba(255,255,255,0.1)',
-                            borderRadius: '4px',
-                            overflow: 'hidden'
-                        }}>
-                            <div style={{
-                                width: `${progress}%`,
-                                height: '100%',
-                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                borderRadius: '4px',
-                                transition: 'width 0.3s ease'
-                            }} />
-                        </div>
-                        <div style={{ marginTop: '0.5rem', color: 'rgba(255,255,255,0.5)' }}>{progress}%</div>
-                    </div>
+                    )}
                 </div>
             )}
         </div>
+    )
+
+    const canvas = (
+        <div style={{ width: '100%', maxWidth: 900, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {originalUrl && finalUrl ? (
+                <CompareView
+                    beforeSrc={originalUrl}
+                    afterSrc={finalUrl}
+                    beforeLabel="Original"
+                    afterLabel={applyBg ? 'Color Backdrop' : 'Cutout (Transparent)'}
+                />
+            ) : (
+                originalUrl && (
+                    <img
+                        src={originalUrl}
+                        alt="Original Preview"
+                        className="workspace-canvas-preview"
+                    />
+                )
+            )}
+        </div>
+    )
+
+    const actionBar = (
+        <>
+            <div className="actionbar-left">
+                <div className="stat-tiles-row">
+                    <StatTile label="Source Size" value={formatFileSize(file.size)} />
+                    {finalBlob && (
+                        <StatTile label="Output Size" value={formatFileSize(finalBlob.size)} />
+                    )}
+                    {originalInfo && (
+                        <StatTile label="Resolution" value={`${originalInfo.width} × ${originalInfo.height}`} />
+                    )}
+                </div>
+            </div>
+
+            <div className="actionbar-right">
+                <Button
+                    variant="primary"
+                    size="md"
+                    icon={<Download size={16} />}
+                    onClick={handleDownload}
+                    disabled={!finalBlob || isProcessing}
+                >
+                    Download {applyBg ? 'JPEG' : 'PNG (Transparent)'}
+                </Button>
+            </div>
+        </>
+    )
+
+    return (
+        <WorkspaceLayout
+            header={header}
+            controls={controls}
+            canvas={canvas}
+            actionBar={actionBar}
+        />
     )
 }
