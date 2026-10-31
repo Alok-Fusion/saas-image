@@ -75,7 +75,7 @@ export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
 
         try {
             const blob = await removeBackground(file, {
-                progress: (key, current, total) => {
+                progress: (_key, current, total) => {
                     // Calculate overall progress
                     const progressPercent = Math.round((current / total) * 100)
                     setProgress(progressPercent)

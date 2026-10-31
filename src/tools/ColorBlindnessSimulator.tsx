@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { downloadBlob, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { downloadBlob, formatFileSize, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
 
 interface ColorBlindnessSimulatorProps {
     onBack: () => void
@@ -291,6 +291,19 @@ export default function ColorBlindnessSimulator({ onBack }: ColorBlindnessSimula
                                 Grid View (All Types)
                             </button>
                         </div>
+
+                        {originalInfo && (
+                            <div className="image-info" style={{ marginBottom: '1rem' }}>
+                                <span className="info-badge">
+                                    <span className="info-badge-label">Dimensions:</span>
+                                    <span className="info-badge-value">{originalInfo.width}×{originalInfo.height}</span>
+                                </span>
+                                <span className="info-badge">
+                                    <span className="info-badge-label">Size:</span>
+                                    <span className="info-badge-value">{formatFileSize(originalInfo.size)}</span>
+                                </span>
+                            </div>
+                        )}
 
                         {viewMode === 'single' && (
                             <div className="control-group">

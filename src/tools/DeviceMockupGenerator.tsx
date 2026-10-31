@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { downloadBlob, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { downloadBlob, formatFileSize, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
 
 interface DeviceMockupGeneratorProps {
     onBack: () => void
@@ -410,6 +410,18 @@ export default function DeviceMockupGenerator({ onBack }: DeviceMockupGeneratorP
                 <>
                     {/* Device & Color Selection */}
                     <div className="controls-panel">
+                        {originalInfo && (
+                            <div className="image-info" style={{ marginBottom: '1.5rem' }}>
+                                <span className="info-badge">
+                                    <span className="info-badge-label">Dimensions:</span>
+                                    <span className="info-badge-value">{originalInfo.width}×{originalInfo.height}</span>
+                                </span>
+                                <span className="info-badge">
+                                    <span className="info-badge-label">Size:</span>
+                                    <span className="info-badge-value">{formatFileSize(originalInfo.size)}</span>
+                                </span>
+                            </div>
+                        )}
                         <div className="control-group">
                             <label className="control-label">
                                 <span>Device Frame</span>
