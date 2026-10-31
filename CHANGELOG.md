@@ -1,0 +1,94 @@
+# Changelog — ImageKit Pro
+
+All notable changes and architectural enhancements to ImageKit Pro are documented here.
+
+## [1.0.0-pro] - 2026-10-31
+
+### Phase 1: Bug Fixes & Reliability
+- **Type Checking (`tsc`)**:
+  - Fixed unused variable `key` in `BackgroundRemover.tsx`.
+  - Fixed unused `originalInfo` in `ColorBlindnessSimulator.tsx` and `DeviceMockupGenerator.tsx`.
+  - Fixed pdfjs-dist v5 bug in `PdfToImage.tsx` where `page.render()` required the canvas element `{ canvasContext, viewport, canvas }`.
+- **Bundled PDF Worker**:
+  - Replaced broken cdnjs URL with bundled offline worker: `import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'` and `GlobalWorkerOptions.workerSrc = workerUrl`.
+  - Added graceful error handling for password-protected PDFs and memory cleanup releasing rendered canvases sequentially.
+- **ESLint 9 Flat Configuration**:
+  - Added flat config `eslint.config.js` with `typescript-eslint`, `react-hooks`, and `react-refresh`.
+  - Fixed missing hook dependencies, stale closures, and cleanup unmounting.
+- **Removed Postinstall Hack**:
+  - Removed unnecessary postinstall permissions script.
+- **Format & Transparency Preservation**:
+  - Fixed `resizeImage` in `src/utils/imageProcessing.ts` to preserve transparency for PNG and WebP instead of forcing white JPEG.
+  - Fixed `compressImage` to detect when compressed output is larger than input, warning user and offering original.
+- **Storage Safety**:
+  - Wrapped `localStorage` in `useFavorites` and `useRecentlyUsed` with try/catch to prevent crashes in private browsing or quota-constrained storage.
+- **Dead Code Cleanup**:
+  - Removed unused and leaky `OutputBranding.ts` utility.
+
+### Phase 2: Performance
+- **Dynamic Code Splitting**:
+  - Converted all 20 tools in `App.tsx` from static imports to `React.lazy` with skeleton fallback loaders.
+  - Configured Rollup `manualChunks` in `vite.config.ts` to isolate `react`, `pdfjs`, `jspdf`, `pdf-lib`, `tesseract`, `jszip`, and `onnxruntime-web`.
+  - Reduced initial bundle download from ~1.4 MB (482 KB gzip) to **166.9 KB (52.65 KB gzip)** (~89% reduction).
+  - Added route chunk prefetching on tool card hover and keyboard focus.
+- **Web Worker Offloading**:
+  - Created `src/workers/image.worker.ts` and `src/utils/imageWorker.ts`.
+  - Offloaded CPU-heavy algorithms: Color Blindness matrix transformation, Watermark boundary-fill inpainting, Perceptual difference hashing, Color Palette extraction, and ASCII Art generation.
+  - Implemented progress reporting and task cancellation (`AbortError`) to keep UI at 60 FPS without main-thread blocking.
+- **Concurrency Limiting**:
+  - Created `src/utils/concurrency.ts` to map multi-file operations with hardware-concurrency pool (clamped between 1 and 4).
+- **Resource Lifecycle Management**:
+  - Created `src/hooks/useObjectUrl.ts` for leak-free blob URL creation and automatic revocation on unmount or input change.
+- **Unified File Intake**:
+  - Created `src/utils/fileIntake.ts` and shared `src/components/Dropzone.tsx` component.
+  - Supports drag and drop, file picker, clipboard paste, format verification, 50 MB file size limit, 100 MP pixel safety guard, and informative HEIC unsupported messages.
+
+### Phase 3: UX & Accessibility
+- **Error Boundaries & Feedback**:
+  - Wrapped tools and root app with `ErrorBoundary.tsx`.
+  - Added global `ToastProvider` and `useToast` hook for status and error notifications.
+  - Added clear before/after file size comparisons and action buttons disabled during processing.
+  - Added meaningful output file names (e.g., `original-compressed.webp`).
+- **Accessibility (A11y)**:
+  - Converted tool cards to keyboard-operable elements with `role="button"`, `tabIndex={0}`, and Enter/Space triggers.
+  - Added `:focus-visible` styling with 2px accent outlines.
+  - Added `aria-label` attributes to back buttons and favorite stars (`aria-pressed`).
+  - Added ARIA slider semantics (`role="slider"`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, arrow key navigation) to Image Comparison Slider.
+  - Added image alt text across preview surfaces.
+- **Mobile Responsiveness**:
+  - Adjusted grids and containers to scale smoothly down to 360px viewports.
+  - Implemented pointer events with `touchAction: none` for touch compatibility on crop handles and sliders.
+
+### Phase 4: SEO, PWA & Architecture
+- **Brand Assets**:
+  - Generated SVG favicon, 32x32 PNG favicon, 180x180 Apple touch icon, 192x192 & 512x512 PWA icons, and 1200x630 Open Graph preview image.
+  - Updated `index.html` with canonical URL, Open Graph, Twitter Cards, and schema.org JSON-LD web application metadata.
+- **PWA Service Worker**:
+  - Configured `vite-plugin-pwa` with `manifest.webmanifest` and Workbox caching app shell and tool chunks offline.
+- **SEO & Static Prerendering**:
+  - Migrated hash routes to clean paths (e.g. `/compress-image`, `/remove-background`) while preserving automatic redirection from legacy `#/compressor` URLs.
+  - Configured `vercel.json` rewrites and caching headers.
+  - Added `scripts/prerender.mjs` to output static HTML files for all 20 routes with customized titles, descriptions, H1 headings, and how-to guides.
+- **Dependency & Tech Stack Audit**:
+  - Removed unused dependencies `exif-js`, `pako`, and `file-saver`.
+  - Replaced external EXIF parsing with pure binary JPEG parser in `src/utils/exif.ts`.
+  - Replaced inaccurate OpenCV badge in `README.md` with Canvas API and PWA badges.
+- **Automated Testing & CI**:
+  - Added Vitest 5 suite with 8 test files and 48 unit tests covering `imageProcessing`, `socialPresets`, `fileIntake`, `toolSuggestions`, `duplicateHashing`, `concurrency`, `exif`, and custom hooks.
+  - Added GitHub Actions CI workflow in `.github/workflows/ci.yml`.
+
+---
+
+## Deliberately Preserved Architectural Choices
+
+1. **Zero-Backend Privacy Guarantee**: All image processing remains 100% inside the browser using HTML5 Canvas, OffscreenCanvas, and Web Workers. No remote uploads or analytics transmitting image data.
+2. **Visual Design System**: Preserved the dark mode glassmorphism theme, gradients, typography, and card aesthetic in `src/index.css`.
+3. **Legacy URL Compatibility**: Preserved backwards compatibility for existing `#/<tool>` links by redirecting them transparently to the canonical path-based routes.
+
+---
+
+## Recommended Next Steps
+
+1. **WebGPU Acceleration**: Leverage WebGPU for AI models (`@imgly/background-removal`) where supported for faster inference.
+2. **WebAssembly HEIC Decoder**: Bundle a lightweight WASM decoder (such as `libheif-js`) conditionally so iPhone users can convert HEIC images directly without pre-exporting.
+3. **Batch Processing**: Extend multi-file concurrency queues to image resizing and watermark application.
