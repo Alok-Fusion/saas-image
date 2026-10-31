@@ -81,7 +81,7 @@ export function computeDrawRect(
     }
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: OutputMime, quality?: number): Promise<Blob> {
+export function canvasToBlob(canvas: HTMLCanvasElement, type: OutputMime, quality?: number): Promise<Blob> {
     return new Promise((resolve, reject) => {
         canvas.toBlob(
             (blob) => {
@@ -122,22 +122,34 @@ async function sourceToCanvasSource(
     }
 }
 
+const infoCache = new WeakMap<File, Promise<ImageInfo>>()
+
 /**
- * Get image dimensions and info from a File
+ * Get image dimensions and info from a File. Results are cached per File so
+ * validation and tool setup do not decode the same image twice.
  */
-export async function getImageInfo(file: File): Promise<ImageInfo> {
-    const loaded = await sourceToCanvasSource(file)
-    try {
-        return {
-            width: loaded.width,
-            height: loaded.height,
-            size: file.size,
-            type: file.type,
-            name: file.name,
+export function getImageInfo(file: File): Promise<ImageInfo> {
+    const cached = infoCache.get(file)
+    if (cached) return cached
+
+    const pending = (async () => {
+        const loaded = await sourceToCanvasSource(file)
+        try {
+            return {
+                width: loaded.width,
+                height: loaded.height,
+                size: file.size,
+                type: file.type,
+                name: file.name,
+            }
+        } finally {
+            loaded.revoke()
         }
-    } finally {
-        loaded.revoke()
-    }
+    })()
+
+    infoCache.set(file, pending)
+    pending.catch(() => infoCache.delete(file))
+    return pending
 }
 
 /**
@@ -251,7 +263,8 @@ export async function resizeImage(
  */
 export async function applyBackground(
     imageBlob: Blob,
-    backgroundColor: string
+    backgroundColor: string,
+    format: OutputMime = 'image/png'
 ): Promise<Blob> {
     const loaded = await sourceToCanvasSource(imageBlob)
 
@@ -267,7 +280,7 @@ export async function applyBackground(
         ctx.fillRect(0, 0, canvas.width, canvas.height)
         ctx.drawImage(loaded.source, 0, 0)
 
-        return await canvasToBlob(canvas, 'image/png')
+        return await canvasToBlob(canvas, format, 0.92)
     } finally {
         loaded.revoke()
     }
