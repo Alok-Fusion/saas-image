@@ -20,3 +20,4 @@ export const ReduceEffectsToggle: React.FC = () => {
 }
 
 export default ReduceEffectsToggle
+

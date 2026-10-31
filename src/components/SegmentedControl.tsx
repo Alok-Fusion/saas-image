@@ -47,3 +47,4 @@ export default function SegmentedControl<T extends string | number>({
         </div>
     )
 }
+

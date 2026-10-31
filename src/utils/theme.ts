@@ -22,3 +22,4 @@ export function saveTheme(theme: Theme): void {
         // Ignore quota
     }
 }
+

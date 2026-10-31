@@ -1,18 +1,18 @@
-
 <div align="center">
   <h1>✨ ImageKit Pro</h1>
   <p>
-    <strong>A Powerful, Privacy-Focused Image Utility Toolkit</strong>
+    <strong>Award-Level Cinematic Creative Suite · 20 Client-Side Image Tools</strong>
   </p>
   <p>
-    <img src="https://img.shields.io/badge/Privacy-100%25-success?style=for-the-badge&logo=shield" alt="Privacy First" />
-    <img src="https://img.shields.io/badge/Tools-20%2B-blue?style=for-the-badge&logo=tools" alt="20+ Tools" />
-    <img src="https://img.shields.io/badge/Processing-Client%20Side-important?style=for-the-badge&logo=browser" alt="Client Side" />
+    <img src="https://img.shields.io/badge/Privacy-100%25%20In--Browser-success?style=for-the-badge&logo=shield" alt="Privacy First" />
+    <img src="https://img.shields.io/badge/Tools-20%20Precision%20Instruments-blue?style=for-the-badge&logo=tools" alt="20 Tools" />
+    <img src="https://img.shields.io/badge/3D%20Experience-Three.js%20%2B%20GSAP-black?style=for-the-badge&logo=three.js" alt="3D Immersive" />
+    <img src="https://img.shields.io/badge/Initial%20JS-22.4%20kB%20gzip-d4ff3a?style=for-the-badge&color=282833&labelColor=0d0d12" alt="Bundle Size" />
     <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   </p>
   
   <p>
-    <em>Transform, Edit, and Create images directly in your browser. No server uploads. No sign-ups.</em>
+    <em>A cinematic, scroll-driven visual journey where visitors experience 3D transformations before diving into 20 private, instant browser utilities.</em>
   </p>
 
   <p>
@@ -22,88 +22,100 @@
 
 ---
 
-## 🚀 Overview
+## 🌟 The Cinematic Front Door (Awwwards / FWA Experience)
 
-**ImageKit Pro** is a modern web application that provides a comprehensive suite of image manipulation tools. Built with a focus on **privacy** and **performance**, all processing happens entirely within your web browser. Your images never leave your device.
+ImageKit Pro features an immersive, scroll-choreographed 3D experience powered by **Three.js**, **@react-three/fiber**, **GSAP ScrollTrigger**, and **Lenis** smooth scrolling:
 
-## 🛠️ Feature Matrix
+```
+[00 Intro]       Floating photo stack in dark studio with volumetric rim lighting & cursor parallax
+      ↓
+[01 Squeeze]     Stack compresses into a dense crystal block; telemetry countdown 8.4 MB → 640 KB
+      ↓
+[02 Framing]     Golden crop reticles snap to coordinates; aspect ratio morphs 1:1 → 16:9 → 9:16
+      ↓
+[03 Separation]  Subject elevates on Z-axis (+1.8 units); background dissolves into noise particles
+      ↓
+[04 Synthesis]   Images fold and stack into a neat 3D PDF binder folio
+      ↓
+[05 Inscription] Electric cyan laser sweeps down; 3D characters fly off the document surface
+      ↓
+[06 Zero Trace]  Iridescent forcefield wraps photo; GPS & camera EXIF tags peel off and dissipate
+      ↓
+[07 Stage]       Photo lands onto a 3D smartphone OLED glass display, rotating with perspective
+      ↓
+[Constellation]  Camera accelerates back to reveal all 20 tools as interactive floating 3D tiles
+```
+
+---
+
+## ⚡ Performance & Zero-Compromise Fallback
+
+- **Sub-25 kB Initial Gzip Payload**: The entire 3D WebGL engine and Three.js runtime are strictly dynamic-imported (`React.lazy`) after the first contentful paint.
+- **Automatic Capability Detection**: Systems with `prefers-reduced-motion`, low memory (`< 4 GB`), low concurrency (`< 4 threads`), or mobile viewports automatically render the high-contrast CSS fallback without loading the 3D pipeline.
+- **Manual "Minimal FX" Toggle**: Visitors can switch between full 3D and reduced effects at any time via the header toggle.
+- **Zero Background GPU Leaks**: The WebGL canvas is automatically unmounted and its contexts released when a tool is opened, dedicating 100% of device resources to local image algorithms.
+
+---
+
+## 🛠️ The 20 In-Browser Precision Tools
+
+All 20 tools operate **100% locally in your browser** with zero uploads, zero tracking, and absolute privacy.
 
 ### ⭐ Core Essentials
-| Tool | Description |
-|:--- |:--- |
-| **📦 Image Compressor** | Compress JPEG, PNG, WebP with precision quality control. |
-| **📱 Social Media Resizer** | Batch resize for Instagram, YouTube, LinkedIn & more. |
-| **🎭 Background Remover** | AI-powered background removal running 100% client-side. |
+| Tool | Route | Description |
+|:--- |:--- |:--- |
+| **📦 Image Compressor** | `/compress-image` | High-fidelity JPEG, PNG, and WebP compression with real-time savings telemetry. |
+| **📱 Social Media Resizer** | `/resize-image` | Batch presets for Instagram, YouTube, LinkedIn, X, and Facebook with cover/contain modes. |
+| **🎭 Background Remover** | `/remove-background` | Client-side neural network cutout running via ONNX WebAssembly. |
+| **↔️ Comparison Slider** | `/image-comparison` | Touch and keyboard split-view comparison slider with transparency backplate. |
 
 ### ✂️ Edit & Transform
-| Tool | Description |
-|:--- |:--- |
-| **✂️ Image Cropper** | Crop with preset aspect ratios (1:1, 16:9, 4:3, etc.). |
-| **🔄 Image Rotator** | Rotate (90°/180°) and flip vertical/horizontal. |
-| **© Watermark Adder** | Add customizable text watermarks to protect your work. |
-| **🧹 Watermark Remover** | Remove unwanted elements using Inpaint, Blur, or Pixelate. |
-
-### 🎨 Design & Creative
-| Tool | Description |
-|:--- |:--- |
-| **🎬 Thumbnail Maker** | Create engaging thumbnails with text, emojis & overlays. |
-| **🎨 Palette Extractor** | Extract dominant colors (HEX/RGB) & CSS gradients. |
-| **📱 Device Mockups** | Place your screenshots into iPhone, iPad & MacBook frames. |
-| **🖌️ ASCII Art** | Convert any image into retro ASCII text art. |
+| Tool | Route | Description |
+|:--- |:--- |:--- |
+| **✂️ Image Cropper** | `/crop-image` | Draggable rule-of-thirds grid with 8 locked aspect ratio presets. |
+| **🔄 Image Rotator** | `/rotate-image` | 90°/180° step rotation, continuous 0–360° slider, and horizontal/vertical flipping. |
+| **© Watermark Adder** | `/watermark` | Custom text watermarks with 5 placement points, opacity, and live preview. |
+| **🧹 Watermark Remover** | `/remove-watermark` | Interactive marquee eraser powered by Inpaint, Blur, or Pixelate algorithms. |
 
 ### 📄 PDF Utilities
-| Tool | Description |
-|:--- |:--- |
-| **📄 Image to PDF** | Convert multiple images into a single PDF document. |
-| **📑 PDF to Image** | Extract high-quality PNG images from PDF pages. |
+| Tool | Route | Description |
+|:--- |:--- |:--- |
+| **📄 Image to PDF** | `/image-to-pdf` | Multi-image sequencing, page ordering, margins, and A4/Letter/Fit sheet binding. |
+| **📑 PDF to Image** | `/pdf-to-image` | Multi-page PDF rasterizer with 1x/2x/3x scale and bulk ZIP export. |
 
-### 🔒 Privacy & Analysis
-| Tool | Description |
-|:--- |:--- |
-| **🔐 EXIF Cleaner** | Remove GPS location & sensitive metadata from photos. |
-| **🔍 Duplicate Finder** | Find similar images using perceptual hashing algorithms. |
-| **📝 OCR Extractor** | Extract text from images (Supports 12+ languages). |
+### 🔒 Privacy & Security
+| Tool | Route | Description |
+|:--- |:--- |:--- |
+| **🔐 EXIF Cleaner** | `/remove-exif` | Deep tag inspector and one-click stripper for GPS coordinates and hardware serials. |
+| **🔍 Duplicate Finder** | `/duplicate-finder` | Perceptual 64-bit difference hashing offloaded to multi-core Web Workers. |
+| **📝 OCR Extractor** | `/image-to-text` | Tesseract.js client-side text extractor supporting 12+ international languages. |
 
-### 🌐 Social & Accessibility
-| Tool | Description |
-|:--- |:--- |
-| **📸 Grid Splitter** | Split images into 3x1, 3x2, 3x3 grids for Instagram. |
-| **🖼️ Favicon Gen** | Generate all necessary favicon sizes + manifest.json. |
-| **👁️ Color Blindness** | Simulate 8 types of color vision deficiencies. |
-| **↔️ Comparison** | interactive side-by-side image comparison slider. |
-
----
-
-## 💻 Tech Stack
-
-<p>
-  <img src="https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite" />
-  <img src="https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white" alt="CSS3" />
-  <img src="https://img.shields.io/badge/HTML5_Canvas-E34F26?style=flat-square&logo=html5&logoColor=white" alt="Canvas API" />
-  <img src="https://img.shields.io/badge/PWA-5A0FC8?style=flat-square&logo=pwa&logoColor=white" alt="PWA" />
-</p>
-
-- **Styling:** Modern tool-like design system (Linear / Raycast aesthetic), dual light & dark themes, self-hosted Geist typography, and Lucide icons
-- **AI/ML:** `@imgly/background-removal`, `tesseract.js`
-- **PDF Engine:** `jspdf`, `pdf-lib`, `pdfjs-dist`
-- **Visualization:** `Canvas API` for real-time processing
+### 🎨 Design & Social
+| Tool | Route | Description |
+|:--- |:--- |:--- |
+| **🎬 Thumbnail Maker** | `/thumbnail-maker` | Canvas studio for YouTube, Instagram, and Twitter graphics with emoji stickers. |
+| **🎨 Palette Extractor** | `/color-palette` | Dominant color cluster extraction with HEX, RGB, and CSS variable copying. |
+| **📱 Device Mockup** | `/device-mockup` | Vector device frames (iPhone 14 Pro, SE, Android, MacBook, iPad, iMac). |
+| **🖌️ ASCII Art** | `/ascii-art` | Retro terminal generator with standard, complex, and block character sets. |
+| **📸 Instagram Grid** | `/instagram-grid` | 3x1, 3x2, and 3x3 profile tile splitter with direct ZIP packaging. |
+| **🖼️ Favicon Generator** | `/favicon-generator` | Multi-resolution `.ico`, PNG matrix, `manifest.json`, and HTML `<head>` snippets. |
+| **👁️ Color Blindness** | `/color-blindness` | Fast 8-mode simulation of protanopia, deuteranopia, tritanopia, and more. |
 
 ---
 
-## 🔒 Privacy Guarantee
+## 💻 Tech Stack & Architecture
 
-> **Your Data Stays Yours.**
-
-Unlike other online tools, **ImageKit Pro** does not upload your files to any remote server.
-- ✅ All processing is local.
-- ✅ No data collection.
-- ✅ Works offline (PWA ready).
+- **Framework**: React 18 + TypeScript + Vite 6
+- **Typography**: Self-hosted `Instrument Serif` (Display), `Geist Sans` (UI), `Geist Mono` (Data)
+- **3D & Kinetic Engine**: `Three.js`, `@react-three/fiber`, `GSAP` + `ScrollTrigger`, `Lenis`
+- **Client-Side AI/ML**: `@imgly/background-removal`, `onnxruntime-web`, `tesseract.js`
+- **PDF Engine**: `pdfjs-dist` (bundled worker), `jspdf`, `pdf-lib`
+- **Offline & PWA**: Workbox Service Worker, SSG Prerendering of all 20 routes
 
 ---
 
-<div align="center">
-  <p>© 2026 ImageKit Pro</p>
-  <p><strong>Developed by Alok Kushwaha</strong></p>
-</div>
+## 🔒 Absolute Privacy Guarantee
+
+> **Your Files Never Leave Your Device.**
+
+ImageKit Pro executes all image transformations strictly within browser client memory (Canvas API, OffscreenCanvas, and Web Workers). There are **no remote APIs, no server uploads, no analytics trackers, and no third-party CDNs**.

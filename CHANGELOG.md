@@ -106,6 +106,28 @@ All notable changes and architectural enhancements to ImageKit Pro are documente
 - **Seamless Cross-Tool Image Chaining**:
   - Added bottom tool chaining suggestion chips carrying the active output file from one tool to the next.
 
+### Phase 6: Award-Level Cinematic Front Door & 3D Scroll Journey (Awwwards / FWA Standard)
+- **Cinematic 3D Scroll-Driven Story**:
+  - Implemented continuous 3D canvas stage using `three` + `@react-three/fiber` with Three.js studio three-point lighting, atmospheric fog, and cursor-reactive parallax.
+  - Scrubbed scroll choreography via `GSAP` + `ScrollTrigger` and `Lenis` smooth scrolling across 7 interactive transformation chapters:
+    1. *Squeeze*: photo stack compresses into a dense crystal block with live telemetry countdown (8.4 MB → 640 KB) and exploding pixel dust.
+    2. *Framing*: golden crop reticles snap to coordinates; aspect ratio morphs 1:1 → 16:9 → 9:16.
+    3. *Separation*: subject lifts on Z-axis (+1.8 units) with dissolving alpha noise grid.
+    4. *Synthesis*: photos fold and stack into a 3D multi-page PDF folio.
+    5. *Inscription*: electric cyan laser sweep with flying extruded typographic glyphs.
+    6. *Zero Trace*: glowing iridescent forcefield wraps photo while EXIF & GPS metadata badges peel away and dissipate.
+    7. *Instant Stage*: photo lands onto a rotating 3D OLED smartphone display.
+    8. *The Constellation*: camera accelerates backward into an amphitheater of 20 interactive floating 3D tool tiles with hover and click fly-through.
+- **Micro-Interactions & Transitions**:
+  - Built minimal preloader (0-100 counter and razor progress line, capped at 1.2s).
+  - Built custom cursor with trailing elastic ring, hover growth, and contextual labels.
+  - Added 500-600ms full-screen shutter curtain route transitions between home and tools.
+- **Zero-Compromise Performance & Fallbacks**:
+  - Dynamic code-splitting: initial critical JS is **22.42 kB gzip**, with Three.js and 3D canvas lazy-loaded strictly on demand.
+  - Automatic hardware detection: low memory (`< 4 GB`), low concurrency (`< 4`), `prefers-reduced-motion`, or mobile automatically runs high-contrast CSS fallback without loading the 3D pipeline.
+  - Added header "Minimal FX" / "3D Immersive" toggle persisting in `localStorage`.
+  - WebGL context is completely disposed and unmounted when entering a tool workspace, freeing 100% of device GPU and memory for local image operations.
+
 ---
 
 ## Deliberately Preserved Architectural Choices
