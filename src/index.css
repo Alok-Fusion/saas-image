@@ -9,6 +9,7 @@
 @import './styles/components.css';
 @import './styles/workspace.css';
 @import './styles/tools.css';
+@import './styles/immersive.css';
 
 /* ==========================================================================
    COMPATIBILITY LAYER (Ensures existing tool class names adapt seamlessly)

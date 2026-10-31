@@ -25,13 +25,22 @@ import {
 } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
 import CommandPalette from './components/CommandPalette'
+import CustomCursor from './components/CustomCursor'
 import ErrorBoundary from './components/ErrorBoundary'
 import FileActionChooser from './components/FileActionChooser'
+import Preloader from './components/Preloader'
 import ReduceEffectsToggle from './components/ReduceEffectsToggle'
+import RouteTransition from './components/RouteTransition'
+import { SceneProvider } from './components/scene/SceneProvider'
+import SmoothScroll from './components/SmoothScroll'
+import ScrollStory from './components/story/ScrollStory'
 import ThemeToggle from './components/ThemeToggle'
 import { useFavorites } from './hooks/useFavorites'
 import { useRecentlyUsed } from './hooks/useRecentlyUsed'
 import ToolSuggestionsBar from './ToolSuggestionsBar'
+import { useCapabilities } from './utils/capabilities'
+
+const ImmersiveCanvas = lazy(() => import('./components/scene/ImmersiveCanvas'))
 
 type Tool =
     | 'home'
@@ -300,6 +309,7 @@ interface HomePageProps {
     isFavorite: (tool: string) => boolean
     toggleFavorite: (tool: string) => void
     onDropFile: (file: File) => void
+    is3DEnabled: boolean
 }
 
 function HomePage({
@@ -310,6 +320,7 @@ function HomePage({
     isFavorite,
     toggleFavorite,
     onDropFile,
+    is3DEnabled,
 }: HomePageProps) {
     const [selectedCategory, setSelectedCategory] = useState<string>('all')
     const [isDraggingOver, setIsDraggingOver] = useState(false)
@@ -354,67 +365,24 @@ function HomePage({
 
     return (
         <div className="home-container">
-            {/* Hero */}
-            <div className="hero-section">
-                <h1 className="hero-headline">Fast, private image tools</h1>
-                <p className="hero-subtext">
-                    20 free utilities running directly in your browser. No server uploads, no sign-ups.
-                </p>
-                <div style={{ marginTop: 'var(--spacing-6)' }}>
-                    <button
-                        type="button"
-                        className="header-search-btn"
-                        style={{ margin: '0 auto', maxWidth: 440, height: 42, fontSize: 'var(--font-size-sm)' }}
-                        onClick={onOpenSearch}
-                    >
-                        <Search size={16} />
-                        <span>Search all 20 image tools…</span>
-                        <span className="header-search-hint">Ctrl K</span>
-                    </button>
+            {/* Scroll-Driven Cinematic Story */}
+            <ScrollStory
+                onSelectTool={(id) => onSelectTool(id as Tool)}
+                onOpenSearch={onOpenSearch}
+                is3DEnabled={is3DEnabled}
+            />
+
+            {/* Accessible HTML Tool Grid Section */}
+            <div id="accessible-tools-grid" className="accessible-tools-section" style={{ paddingTop: 'var(--spacing-16)' }}>
+                <div style={{ marginBottom: 'var(--spacing-8)' }}>
+                    <div className="section-label" style={{ marginBottom: 'var(--spacing-2)' }}>THE COMPLETE SUITE</div>
+                    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(32px, 5vw, 56px)', letterSpacing: '-0.02em', color: 'var(--color-text-primary)' }}>
+                        20 precision image tools.
+                    </h2>
+                    <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                        100% private. All calculations happen locally inside your browser.
+                    </p>
                 </div>
-            </div>
-
-            {/* Quick Start 3-Card Strip */}
-            <div className="quick-start-grid">
-                <button
-                    type="button"
-                    className="quick-start-tile"
-                    onClick={() => onSelectTool('compressor')}
-                    onMouseEnter={() => prefetchTool('compressor')}
-                >
-                    <div className="tile-icon-wrap"><Minimize2 size={20} /></div>
-                    <div className="tile-text-wrap">
-                        <div className="tile-title">Compress Image</div>
-                        <div className="tile-desc">Reduce size with WebP/JPEG precision</div>
-                    </div>
-                </button>
-
-                <button
-                    type="button"
-                    className="quick-start-tile"
-                    onClick={() => onSelectTool('background-remover')}
-                    onMouseEnter={() => prefetchTool('background-remover')}
-                >
-                    <div className="tile-icon-wrap"><Eraser size={20} /></div>
-                    <div className="tile-text-wrap">
-                        <div className="tile-title">Remove Background</div>
-                        <div className="tile-desc">AI-powered cutout on your device</div>
-                    </div>
-                </button>
-
-                <button
-                    type="button"
-                    className="quick-start-tile"
-                    onClick={() => onSelectTool('resizer')}
-                    onMouseEnter={() => prefetchTool('resizer')}
-                >
-                    <div className="tile-icon-wrap"><Maximize2 size={20} /></div>
-                    <div className="tile-text-wrap">
-                        <div className="tile-title">Social Media Resizer</div>
-                        <div className="tile-desc">Presets for Instagram, YouTube, X</div>
-                    </div>
-                </button>
-            </div>
 
             {/* Drop Anywhere Affordance */}
             <div
@@ -490,18 +458,19 @@ function HomePage({
                 })}
             </div>
 
-            {/* Tools Grid */}
-            <div className="tools-grid">
-                {filteredTools.map((t) => (
-                    <ToolCard
-                        key={t.id}
-                        {...t}
-                        onClick={() => onSelectTool(t.id)}
-                        onPrefetch={() => prefetchTool(t.id)}
-                        isFavorite={isFavorite(t.id)}
-                        onToggleFavorite={() => toggleFavorite(t.id)}
-                    />
-                ))}
+                {/* Tools Grid */}
+                <div className="tools-grid">
+                    {filteredTools.map((t) => (
+                        <ToolCard
+                            key={t.id}
+                            {...t}
+                            onClick={() => onSelectTool(t.id)}
+                            onPrefetch={() => prefetchTool(t.id)}
+                            isFavorite={isFavorite(t.id)}
+                            onToggleFavorite={() => toggleFavorite(t.id)}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     )
@@ -556,8 +525,13 @@ function App() {
     const [activeFile, setActiveFile] = useState<File | null>(null)
     const [droppedFile, setDroppedFile] = useState<File | null>(null)
     const [cmdOpen, setCmdOpen] = useState(false)
+    const [isRouteTransitioning, setIsRouteTransitioning] = useState(false)
+    const [pendingTool, setPendingTool] = useState<Tool | null>(null)
+    const [preloaderDone, setPreloaderDone] = useState(() => (typeof window === 'undefined' ? true : getToolFromLocation() !== 'home'))
+
     const { favorites, toggleFavorite, isFavorite } = useFavorites()
     const { recentTools, addRecent } = useRecentlyUsed()
+    const { shouldRun3D } = useCapabilities()
 
     // Navigation popstate
     useEffect(() => {
@@ -593,17 +567,30 @@ function App() {
     const handleSelectTool = useCallback(
         (tool: Tool | string) => {
             const t = tool as Tool
-            setCurrentTool(t)
-            setPathForTool(t)
-            if (t !== 'home') addRecent(t)
+            if (t === currentTool) return
+            prefetchTool(t)
+            setPendingTool(t)
+            setIsRouteTransitioning(true)
+            setTimeout(() => {
+                setCurrentTool(t)
+                setPathForTool(t)
+                if (t !== 'home') addRecent(t)
+                window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+            }, 280)
         },
-        [addRecent]
+        [addRecent, currentTool]
     )
 
     const handleBack = useCallback(() => {
-        setCurrentTool('home')
-        setPathForTool('home')
-    }, [])
+        if (currentTool === 'home') return
+        setPendingTool('home')
+        setIsRouteTransitioning(true)
+        setTimeout(() => {
+            setCurrentTool('home')
+            setPathForTool('home')
+            window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+        }, 280)
+    }, [currentTool])
 
     const handleDropOnHome = useCallback((file: File) => {
         setDroppedFile(file)
@@ -764,67 +751,95 @@ function App() {
         }
     }
 
+    const pendingTitle = pendingTool
+        ? ALL_TOOLS.find((t) => t.id === pendingTool)?.title || 'ImageKit Pro'
+        : undefined
+
     return (
-        <div className="app-root">
-            <Header onLogoClick={handleBack} onOpenSearch={() => setCmdOpen(true)} />
+        <SceneProvider>
+            <SmoothScroll enabled={shouldRun3D && currentTool === 'home'}>
+                <div className="app-root">
+                    <CustomCursor />
 
-            <main className="main-viewport">
-                {currentTool === 'home' ? (
-                    <HomePage
-                        onSelectTool={handleSelectTool}
-                        onOpenSearch={() => setCmdOpen(true)}
-                        favorites={favorites}
-                        recentTools={recentTools}
-                        isFavorite={isFavorite}
-                        toggleFavorite={toggleFavorite}
-                        onDropFile={handleDropOnHome}
+                    {!preloaderDone && (
+                        <Preloader onComplete={() => setPreloaderDone(true)} />
+                    )}
+
+                    <RouteTransition
+                        isTransitioning={isRouteTransitioning}
+                        targetToolTitle={pendingTitle}
+                        onTransitionComplete={() => setIsRouteTransitioning(false)}
                     />
-                ) : (
-                    <>
-                        <ErrorBoundary resetKey={currentTool}>
-                            <Suspense fallback={<ToolLoading />}>{renderTool()}</Suspense>
-                        </ErrorBoundary>
-                        <ToolSuggestionsBar
-                            currentTool={currentTool}
-                            onSelectTool={handleSelectTool}
-                            hasActiveImage={!!activeFile}
-                        />
-                    </>
-                )}
-            </main>
 
-            <footer className="app-footer">
-                <div className="footer-inner">
-                    <div>
-                        © 2026 ImageKit Pro · 100% Client-Side Image Tools · MIT License
-                    </div>
-                    <div>
-                        Crafted with precision by <strong>Alok Kushwaha</strong>
-                    </div>
+                    {/* 3D Immersive Canvas (Mounted on home when 3D enabled) */}
+                    {shouldRun3D && currentTool === 'home' && (
+                        <Suspense fallback={null}>
+                            <ImmersiveCanvas onSelectTool={handleSelectTool} />
+                        </Suspense>
+                    )}
+
+                    <Header onLogoClick={handleBack} onOpenSearch={() => setCmdOpen(true)} />
+
+                    <main className="main-viewport">
+                        {currentTool === 'home' ? (
+                            <HomePage
+                                onSelectTool={handleSelectTool}
+                                onOpenSearch={() => setCmdOpen(true)}
+                                favorites={favorites}
+                                recentTools={recentTools}
+                                isFavorite={isFavorite}
+                                toggleFavorite={toggleFavorite}
+                                onDropFile={handleDropOnHome}
+                                is3DEnabled={shouldRun3D}
+                            />
+                        ) : (
+                            <>
+                                <ErrorBoundary resetKey={currentTool}>
+                                    <Suspense fallback={<ToolLoading />}>{renderTool()}</Suspense>
+                                </ErrorBoundary>
+                                <ToolSuggestionsBar
+                                    currentTool={currentTool}
+                                    onSelectTool={handleSelectTool}
+                                    hasActiveImage={!!activeFile}
+                                />
+                            </>
+                        )}
+                    </main>
+
+                    <footer className="app-footer">
+                        <div className="footer-inner">
+                            <div>
+                                © 2026 ImageKit Pro · 100% Client-Side Image Tools · MIT License
+                            </div>
+                            <div>
+                                Crafted with precision by <strong>Alok Kushwaha</strong>
+                            </div>
+                        </div>
+                    </footer>
+
+                    {/* Global Command Palette (Ctrl+K) */}
+                    <CommandPalette
+                        isOpen={cmdOpen}
+                        onClose={() => setCmdOpen(false)}
+                        items={ALL_TOOLS.map((t) => ({
+                            id: t.id,
+                            title: t.title,
+                            description: t.description,
+                            category: t.category,
+                            icon: t.icon,
+                        }))}
+                        onSelect={(id) => handleSelectTool(id)}
+                    />
+
+                    {/* Drop On Home File Action Chooser */}
+                    <FileActionChooser
+                        file={droppedFile}
+                        onSelectTool={handleChooserSelect}
+                        onClose={() => setDroppedFile(null)}
+                    />
                 </div>
-            </footer>
-
-            {/* Global Command Palette (Ctrl+K) */}
-            <CommandPalette
-                isOpen={cmdOpen}
-                onClose={() => setCmdOpen(false)}
-                items={ALL_TOOLS.map((t) => ({
-                    id: t.id,
-                    title: t.title,
-                    description: t.description,
-                    category: t.category,
-                    icon: t.icon,
-                }))}
-                onSelect={(id) => handleSelectTool(id)}
-            />
-
-            {/* Drop On Home File Action Chooser */}
-            <FileActionChooser
-                file={droppedFile}
-                onSelectTool={handleChooserSelect}
-                onClose={() => setDroppedFile(null)}
-            />
-        </div>
+            </SmoothScroll>
+        </SceneProvider>
     )
 }
 
