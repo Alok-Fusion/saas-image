@@ -642,39 +642,121 @@ function App() {
                     />
                 )
             case 'exif-cleaner':
-                return <ExifCleaner onBack={handleBack} />
+                return (
+                    <ExifCleaner
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                        onProduceFile={setActiveFile}
+                    />
+                )
             case 'color-palette':
-                return <ColorPaletteExtractor onBack={handleBack} />
+                return (
+                    <ColorPaletteExtractor
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                    />
+                )
             case 'instagram-grid':
-                return <InstagramGridSplitter onBack={handleBack} />
+                return (
+                    <InstagramGridSplitter
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                    />
+                )
             case 'favicon':
-                return <FaviconGenerator onBack={handleBack} />
+                return (
+                    <FaviconGenerator
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                    />
+                )
             case 'ocr':
-                return <OcrExtractor onBack={handleBack} />
+                return (
+                    <OcrExtractor
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                    />
+                )
             case 'device-mockup':
-                return <DeviceMockupGenerator onBack={handleBack} />
+                return (
+                    <DeviceMockupGenerator
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                        onProduceFile={setActiveFile}
+                    />
+                )
             case 'color-blindness':
-                return <ColorBlindnessSimulator onBack={handleBack} />
+                return (
+                    <ColorBlindnessSimulator
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                    />
+                )
             case 'ascii-art':
-                return <AsciiArtGenerator onBack={handleBack} />
+                return (
+                    <AsciiArtGenerator
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                    />
+                )
             case 'image-comparison':
-                return <ImageComparisonSlider onBack={handleBack} />
+                return (
+                    <ImageComparisonSlider
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                    />
+                )
             case 'duplicate-finder':
                 return <DuplicateFinder onBack={handleBack} />
             case 'image-to-pdf':
-                return <ImageToPdf onBack={handleBack} />
+                return (
+                    <ImageToPdf
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                    />
+                )
             case 'pdf-to-image':
                 return <PdfToImage onBack={handleBack} />
             case 'cropper':
-                return <ImageCropper onBack={handleBack} />
+                return (
+                    <ImageCropper
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                        onProduceFile={setActiveFile}
+                    />
+                )
             case 'rotator':
-                return <ImageRotator onBack={handleBack} />
+                return (
+                    <ImageRotator
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                        onProduceFile={setActiveFile}
+                    />
+                )
             case 'watermark':
-                return <WatermarkAdder onBack={handleBack} />
+                return (
+                    <WatermarkAdder
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                        onProduceFile={setActiveFile}
+                    />
+                )
             case 'watermark-remover':
-                return <WatermarkRemover onBack={handleBack} />
+                return (
+                    <WatermarkRemover
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                        onProduceFile={setActiveFile}
+                    />
+                )
             case 'thumbnail':
-                return <ThumbnailMaker onBack={handleBack} />
+                return (
+                    <ThumbnailMaker
+                        onBack={handleBack}
+                        initialFile={activeFile}
+                        onProduceFile={setActiveFile}
+                    />
+                )
             default:
                 return null
         }

@@ -1,40 +1,54 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Download, FlipHorizontal, FlipVertical, RotateCcw, RotateCw } from 'lucide-react'
+import Button from '../components/Button'
+import ControlGroup from '../components/ControlGroup'
 import Dropzone from '../components/Dropzone'
+import FileChip from '../components/FileChip'
+import Slider from '../components/Slider'
+import StatTile from '../components/StatTile'
+import ToolHeader from '../components/ToolHeader'
 import { useToast } from '../components/Toast'
+import WorkspaceLayout from '../components/WorkspaceLayout'
 import { useObjectUrl } from '../hooks/useObjectUrl'
 import {
     buildOutputName,
     canvasToBlob,
     downloadBlob,
-    formatFileSize,
     getImageInfo,
     getOutputMime,
     loadImage,
     type ImageInfo,
 } from '../utils/imageProcessing'
+import { createSampleImage } from '../utils/sampleImage'
 
 interface ImageRotatorProps {
     onBack: () => void
+    initialFile?: File | null
+    onProduceFile?: (file: File) => void
 }
 
-export default function ImageRotator({ onBack }: ImageRotatorProps) {
-    const [file, setFile] = useState<File | null>(null)
+export default function ImageRotator({
+    onBack,
+    initialFile,
+    onProduceFile,
+}: ImageRotatorProps) {
+    const [file, setFile] = useState<File | null>(() => initialFile ?? null)
+    const [prevInitialFile, setPrevInitialFile] = useState<File | null>(initialFile ?? null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
     const [rotation, setRotation] = useState(0)
     const [flipH, setFlipH] = useState(false)
     const [flipV, setFlipV] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
     const preview = useObjectUrl(file)
-    const { error } = useToast()
+    const { error, success } = useToast()
 
-    useEffect(() => {
-        if (!file) return
-        let active = true
-        getImageInfo(file)
-            .then((info) => { if (active) setOriginalInfo(info) })
-            .catch((err) => { if (active) error(err instanceof Error ? err.message : 'Could not read the image') })
-        return () => { active = false }
-    }, [error, file])
+    if (initialFile && initialFile !== prevInitialFile) {
+        setPrevInitialFile(initialFile)
+        setFile(initialFile)
+        setRotation(0)
+        setFlipH(false)
+        setFlipV(false)
+    }
 
     const handleFile = useCallback((selectedFile: File) => {
         setFile(selectedFile)
@@ -43,7 +57,23 @@ export default function ImageRotator({ onBack }: ImageRotatorProps) {
         setFlipV(false)
     }, [])
 
-    // Rotate
+    useEffect(() => {
+        if (!file) return
+        let cancelled = false
+        void getImageInfo(file)
+            .then((info) => {
+                if (cancelled) return
+                setOriginalInfo(info)
+            })
+            .catch(() => {
+                if (cancelled) return
+                setOriginalInfo(null)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [file])
+
     const rotate = (degrees: number) => {
         setRotation((prev) => (prev + degrees + 360) % 360)
     }
@@ -77,7 +107,13 @@ export default function ImageRotator({ onBack }: ImageRotatorProps) {
 
             const blob = await canvasToBlob(canvas, mime, 0.92)
             const extension = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png'
-            downloadBlob(blob, buildOutputName(file.name, 'rotated', extension))
+            const outName = buildOutputName(file.name, 'rotated', extension)
+            downloadBlob(blob, outName)
+
+            if (onProduceFile) {
+                onProduceFile(new File([blob], outName, { type: mime }))
+            }
+            success('Transformed image exported successfully')
         } catch (err) {
             error(err instanceof Error ? err.message : 'Could not transform the image')
         } finally {
@@ -94,125 +130,149 @@ export default function ImageRotator({ onBack }: ImageRotatorProps) {
     const handleReset = () => {
         setFile(null)
         setOriginalInfo(null)
-        setRotation(0)
-        setFlipH(false)
-        setFlipV(false)
+        resetTransforms()
     }
 
-    const transformStyle = {
-        transform: `rotate(${rotation}deg) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
-        transition: 'transform 0.3s ease'
-    }
+    const leftControls = (
+        <>
+            {file && (
+                <ControlGroup label="Source Image">
+                    <FileChip
+                        name={file.name}
+                        sizeBytes={file.size}
+                        width={originalInfo?.width}
+                        height={originalInfo?.height}
+                        thumbnailUrl={preview || undefined}
+                        onRemove={handleReset}
+                    />
+                </ControlGroup>
+            )}
 
-    return (
-        <div className="tool-page">
-            <div className="tool-header">
-                <button className="back-button" onClick={onBack}>←</button>
-                <h1 className="tool-title">Image Rotator & Flipper</h1>
+            <ControlGroup label="Step Rotation" hint="Rotate clockwise or counter-clockwise by 90°">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--spacing-1)' }}>
+                    <Button variant="secondary" size="sm" onClick={() => rotate(-90)} icon={<RotateCcw size={13} />}>
+                        -90°
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => rotate(90)} icon={<RotateCw size={13} />}>
+                        +90°
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => rotate(180)}>
+                        180°
+                    </Button>
+                </div>
+            </ControlGroup>
+
+            <ControlGroup label="Continuous Angle">
+                <Slider
+                    label="Angle"
+                    value={rotation}
+                    min={0}
+                    max={360}
+                    step={1}
+                    unit="°"
+                    onChange={setRotation}
+                />
+            </ControlGroup>
+
+            <ControlGroup label="Mirror & Invert">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-2)' }}>
+                    <Button
+                        variant={flipH ? 'primary' : 'secondary'}
+                        size="sm"
+                        onClick={() => setFlipH(!flipH)}
+                        icon={<FlipHorizontal size={14} />}
+                    >
+                        Flip Horizontal
+                    </Button>
+                    <Button
+                        variant={flipV ? 'primary' : 'secondary'}
+                        size="sm"
+                        onClick={() => setFlipV(!flipV)}
+                        icon={<FlipVertical size={14} />}
+                    >
+                        Flip Vertical
+                    </Button>
+                </div>
+            </ControlGroup>
+
+            <Button variant="ghost" size="sm" onClick={resetTransforms} icon={<RotateCcw size={13} />}>
+                Reset Transformations
+            </Button>
+        </>
+    )
+
+    const centerCanvas = !file ? (
+        <Dropzone
+            onFiles={(files) => handleFile(files[0])}
+            icon="rotate-cw"
+            title="Drop image to rotate or flip"
+            hint="Lossless canvas transformation with angle sliders and mirror controls"
+            onTrySample={async () => {
+                const s = await createSampleImage()
+                handleFile(s)
+            }}
+        />
+    ) : (
+        <div style={{ textAlign: 'center', maxWidth: '800px', width: '100%', padding: 'var(--spacing-4)' }}>
+            <img
+                src={preview || undefined}
+                alt="Rotated preview"
+                style={{
+                    maxHeight: '65vh',
+                    maxWidth: '100%',
+                    objectFit: 'contain',
+                    transform: `rotate(${rotation}deg) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
+                    transition: 'transform 0.25s ease-out',
+                    borderRadius: 'var(--radius-sm)',
+                    boxShadow: 'var(--shadow-md)',
+                }}
+            />
+        </div>
+    )
+
+    const bottomBar = (
+        <>
+            <div style={{ display: 'flex', gap: 'var(--spacing-3)' }}>
+                <StatTile label="Angle" value={`${rotation}°`} />
+                <StatTile
+                    label="Flip"
+                    value={
+                        flipH && flipV ? 'Both (H+V)' : flipH ? 'Horizontal' : flipV ? 'Vertical' : 'None'
+                    }
+                />
             </div>
 
-            {!file ? (
-                <Dropzone
-                    onFiles={(files) => handleFile(files[0])}
-                    icon="🔄"
-                    title="Drop your image here or click to browse"
-                    hint="Rotate, flip, and mirror your images"
-                />
-            ) : (
-                <>
-                    {/* Controls */}
-                    <div className="controls-panel">
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
-                            {/* Rotation Controls */}
-                            <div className="control-group">
-                                <label className="control-label">
-                                    <span>Rotation</span>
-                                    <span className="control-value">{rotation}°</span>
-                                </label>
-                                <div className="select-buttons">
-                                    <button className="select-button" onClick={() => rotate(-90)}>↶ 90°</button>
-                                    <button className="select-button" onClick={() => rotate(90)}>↷ 90°</button>
-                                    <button className="select-button" onClick={() => rotate(180)}>180°</button>
-                                </div>
-                                <div style={{ marginTop: '0.75rem' }}>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="360"
-                                        value={rotation}
-                                        onChange={(e) => setRotation(Number(e.target.value))}
-                                        style={{ width: '100%' }}
-                                    />
-                                </div>
-                            </div>
+            <div className="workspace-action-group">
+                <Button variant="ghost" onClick={handleReset} icon={<RotateCcw size={15} />}>
+                    Reset
+                </Button>
+                <Button
+                    variant="primary"
+                    onClick={() => void handleDownload()}
+                    isLoading={isProcessing}
+                    icon={<Download size={15} />}
+                >
+                    Download Transformed Image
+                </Button>
+            </div>
+        </>
+    )
 
-                            {/* Flip Controls */}
-                            <div className="control-group">
-                                <label className="control-label"><span>Flip</span></label>
-                                <div className="select-buttons">
-                                    <button
-                                        className={`select-button ${flipH ? 'active' : ''}`}
-                                        onClick={() => setFlipH(!flipH)}
-                                    >
-                                        ↔️ Horizontal
-                                    </button>
-                                    <button
-                                        className={`select-button ${flipV ? 'active' : ''}`}
-                                        onClick={() => setFlipV(!flipV)}
-                                    >
-                                        ↕️ Vertical
-                                    </button>
-                                </div>
-                                <button
-                                    className="secondary-button"
-                                    onClick={resetTransforms}
-                                    style={{ marginTop: '0.75rem', width: '100%' }}
-                                >
-                                    Reset Transformations
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Preview */}
-                    <div className="image-preview-container" style={{ marginTop: '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-                            {preview && (
-                                <img
-                                    src={preview}
-                                    alt="Preview"
-                                    className="image-preview"
-                                    style={transformStyle}
-                                />
-                            )}
-                        </div>
-                        <div className="image-info">
-                            <span className="info-badge">
-                                <span className="info-badge-label">Original:</span>
-                                <span className="info-badge-value">
-                                    {originalInfo ? `${originalInfo.width}×${originalInfo.height}` : '-'}
-                                </span>
-                            </span>
-                            <span className="info-badge">
-                                <span className="info-badge-label">Size:</span>
-                                <span className="info-badge-value">
-                                    {originalInfo ? formatFileSize(originalInfo.size) : '-'}
-                                </span>
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="actions-bar">
-                        <button className="secondary-button" onClick={handleReset}>
-                            🔄 Upload New Image
-                        </button>
-                        <button className="download-button" onClick={handleDownload} disabled={isProcessing}>
-                            {isProcessing ? '⏳ Processing…' : '⬇️ Download Transformed Image'}
-                        </button>
-                    </div>
-                </>
-            )}
+    return (
+        <div className="tool-view-wrapper">
+            <ToolHeader
+                toolName="Image Rotator & Flipper"
+                toolIcon={<RotateCw size={18} />}
+                toolId="image-rotator"
+                onBack={onBack}
+                onReset={file ? handleReset : undefined}
+            />
+            <WorkspaceLayout
+                leftControls={leftControls}
+                centerCanvas={centerCanvas}
+                bottomBar={bottomBar}
+                hasFile={!!file}
+            />
         </div>
     )
 }
