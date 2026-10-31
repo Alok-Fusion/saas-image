@@ -1,33 +1,90 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import ErrorBoundary from './components/ErrorBoundary'
 import { useFavorites } from './hooks/useFavorites'
 import { useRecentlyUsed } from './hooks/useRecentlyUsed'
-import AsciiArtGenerator from './tools/AsciiArtGenerator'
-import BackgroundRemover from './tools/BackgroundRemover'
-import ColorBlindnessSimulator from './tools/ColorBlindnessSimulator'
-import ColorPaletteExtractor from './tools/ColorPaletteExtractor'
-import DeviceMockupGenerator from './tools/DeviceMockupGenerator'
-import DuplicateFinder from './tools/DuplicateFinder'
-import ExifCleaner from './tools/ExifCleaner'
-import FaviconGenerator from './tools/FaviconGenerator'
-import ImageComparisonSlider from './tools/ImageComparisonSlider'
-import ImageCompressor from './tools/ImageCompressor'
-import ImageCropper from './tools/ImageCropper'
-import ImageRotator from './tools/ImageRotator'
-import ImageToPdf from './tools/ImageToPdf'
-import InstagramGridSplitter from './tools/InstagramGridSplitter'
-import OcrExtractor from './tools/OcrExtractor'
-import PdfToImage from './tools/PdfToImage'
-import SocialMediaResizer from './tools/SocialMediaResizer'
-import ThumbnailMaker from './tools/ThumbnailMaker'
-import WatermarkAdder from './tools/WatermarkAdder'
-import WatermarkRemover from './tools/WatermarkRemover'
 import ToolSuggestionsBar from './ToolSuggestionsBar'
 
 type Tool = 'home' | 'compressor' | 'resizer' | 'background-remover' | 'exif-cleaner' | 'color-palette' | 'instagram-grid' | 'favicon' | 'ocr' | 'device-mockup' | 'color-blindness' | 'ascii-art' | 'image-comparison' | 'duplicate-finder' | 'image-to-pdf' | 'pdf-to-image' | 'cropper' | 'rotator' | 'watermark' | 'watermark-remover' | 'thumbnail'
 
+const TOOL_LOADERS = {
+    'ascii-art': () => import('./tools/AsciiArtGenerator'),
+    'background-remover': () => import('./tools/BackgroundRemover'),
+    'color-blindness': () => import('./tools/ColorBlindnessSimulator'),
+    'color-palette': () => import('./tools/ColorPaletteExtractor'),
+    'device-mockup': () => import('./tools/DeviceMockupGenerator'),
+    'duplicate-finder': () => import('./tools/DuplicateFinder'),
+    'exif-cleaner': () => import('./tools/ExifCleaner'),
+    'favicon': () => import('./tools/FaviconGenerator'),
+    'image-comparison': () => import('./tools/ImageComparisonSlider'),
+    'compressor': () => import('./tools/ImageCompressor'),
+    'cropper': () => import('./tools/ImageCropper'),
+    'rotator': () => import('./tools/ImageRotator'),
+    'image-to-pdf': () => import('./tools/ImageToPdf'),
+    'instagram-grid': () => import('./tools/InstagramGridSplitter'),
+    'ocr': () => import('./tools/OcrExtractor'),
+    'pdf-to-image': () => import('./tools/PdfToImage'),
+    'resizer': () => import('./tools/SocialMediaResizer'),
+    'thumbnail': () => import('./tools/ThumbnailMaker'),
+    'watermark': () => import('./tools/WatermarkAdder'),
+    'watermark-remover': () => import('./tools/WatermarkRemover'),
+}
+
+const AsciiArtGenerator = lazy(TOOL_LOADERS['ascii-art'])
+const BackgroundRemover = lazy(TOOL_LOADERS['background-remover'])
+const ColorBlindnessSimulator = lazy(TOOL_LOADERS['color-blindness'])
+const ColorPaletteExtractor = lazy(TOOL_LOADERS['color-palette'])
+const DeviceMockupGenerator = lazy(TOOL_LOADERS['device-mockup'])
+const DuplicateFinder = lazy(TOOL_LOADERS['duplicate-finder'])
+const ExifCleaner = lazy(TOOL_LOADERS['exif-cleaner'])
+const FaviconGenerator = lazy(TOOL_LOADERS['favicon'])
+const ImageComparisonSlider = lazy(TOOL_LOADERS['image-comparison'])
+const ImageCompressor = lazy(TOOL_LOADERS['compressor'])
+const ImageCropper = lazy(TOOL_LOADERS['cropper'])
+const ImageRotator = lazy(TOOL_LOADERS['rotator'])
+const ImageToPdf = lazy(TOOL_LOADERS['image-to-pdf'])
+const InstagramGridSplitter = lazy(TOOL_LOADERS['instagram-grid'])
+const OcrExtractor = lazy(TOOL_LOADERS['ocr'])
+const PdfToImage = lazy(TOOL_LOADERS['pdf-to-image'])
+const SocialMediaResizer = lazy(TOOL_LOADERS['resizer'])
+const ThumbnailMaker = lazy(TOOL_LOADERS['thumbnail'])
+const WatermarkAdder = lazy(TOOL_LOADERS['watermark'])
+const WatermarkRemover = lazy(TOOL_LOADERS['watermark-remover'])
+
+function prefetchTool(tool: Tool): void {
+    if (tool !== 'home') void TOOL_LOADERS[tool]()
+}
+
+const TOOL_PATHS: Record<Tool, string> = {
+    home: '/',
+    compressor: '/compress-image',
+    resizer: '/resize-image',
+    'background-remover': '/remove-background',
+    'exif-cleaner': '/remove-exif',
+    'color-palette': '/color-palette',
+    'instagram-grid': '/instagram-grid',
+    favicon: '/favicon-generator',
+    ocr: '/image-to-text',
+    'device-mockup': '/device-mockup',
+    'color-blindness': '/color-blindness',
+    'ascii-art': '/ascii-art',
+    'image-comparison': '/image-comparison',
+    'duplicate-finder': '/duplicate-finder',
+    'image-to-pdf': '/image-to-pdf',
+    'pdf-to-image': '/pdf-to-image',
+    cropper: '/crop-image',
+    rotator: '/rotate-image',
+    watermark: '/watermark',
+    'watermark-remover': '/remove-watermark',
+    thumbnail: '/thumbnail-maker',
+}
+
+const PATH_TO_TOOL = new Map<string, Tool>(
+    (Object.entries(TOOL_PATHS) as [Tool, string][]).map(([tool, path]) => [path, tool])
+)
+
 // SEO title/description per tool
 const TOOL_SEO: Record<string, { title: string; desc: string }> = {
-    'home': { title: 'ImageKit Pro — Free Online Image Tools', desc: '20+ free image tools right in your browser. No uploads, no sign-ups.' },
+    'home': { title: 'ImageKit Pro — Free Online Image Tools', desc: '20 free image tools right in your browser. No uploads, no sign-ups.' },
     'compressor': { title: 'Image Compressor — ImageKit Pro', desc: 'Compress images while maintaining quality. JPEG, PNG, WebP supported.' },
     'resizer': { title: 'Social Media Resizer — ImageKit Pro', desc: 'Resize images for Instagram, YouTube, LinkedIn & more.' },
     'background-remover': { title: 'Background Remover — ImageKit Pro', desc: 'AI-powered background removal. Works right in your browser.' },
@@ -76,18 +133,33 @@ const ALL_TOOLS: { id: Tool; icon: string; iconClass: string; title: string; des
 
 interface ToolCardProps {
     icon: string; iconClass: string; title: string; description: string; isNew?: boolean; onClick: () => void
+    onPrefetch?: () => void
     isFavorite?: boolean; onToggleFavorite?: (e: React.MouseEvent) => void
 }
 
-function ToolCard({ icon, iconClass, title, description, isNew, onClick, isFavorite, onToggleFavorite }: ToolCardProps) {
+function ToolCard({ icon, iconClass, title, description, isNew, onClick, onPrefetch, isFavorite, onToggleFavorite }: ToolCardProps) {
     return (
-        <div className="tool-card" onClick={onClick}>
+        <div
+            className="tool-card"
+            role="button"
+            tabIndex={0}
+            onClick={onClick}
+            onMouseEnter={onPrefetch}
+            onFocus={onPrefetch}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onClick()
+                }
+            }}
+        >
             {isNew && <div className="tool-card-badge">NEW</div>}
             {onToggleFavorite && (
                 <button
                     className={`favorite-btn ${isFavorite ? 'active' : ''}`}
                     onClick={(e) => { e.stopPropagation(); onToggleFavorite(e) }}
-                    title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    aria-label={isFavorite ? `Remove ${title} from favorites` : `Add ${title} to favorites`}
+                    aria-pressed={isFavorite}
                 >
                     {isFavorite ? '★' : '☆'}
                 </button>
@@ -154,6 +226,7 @@ function HomePage({ onSelectTool, favorites, recentTools, isFavorite, toggleFavo
                     <div className="tools-grid">
                         {favTools.map(t => (
                             <ToolCard key={t.id} {...t} onClick={() => onSelectTool(t.id)}
+                                onPrefetch={() => prefetchTool(t.id)}
                                 isFavorite={true} onToggleFavorite={() => toggleFavorite(t.id)} />
                         ))}
                     </div>
@@ -167,6 +240,7 @@ function HomePage({ onSelectTool, favorites, recentTools, isFavorite, toggleFavo
                     <div className="tools-grid">
                         {recentToolCards.map(t => (
                             <ToolCard key={`recent-${t.id}`} {...t} onClick={() => onSelectTool(t.id)}
+                                onPrefetch={() => prefetchTool(t.id)}
                                 isFavorite={isFavorite(t.id)} onToggleFavorite={() => toggleFavorite(t.id)} />
                         ))}
                     </div>
@@ -182,6 +256,7 @@ function HomePage({ onSelectTool, favorites, recentTools, isFavorite, toggleFavo
                         <div className="tools-grid">
                             {tools.map(t => (
                                 <ToolCard key={t.id} {...t} onClick={() => onSelectTool(t.id)}
+                                    onPrefetch={() => prefetchTool(t.id)}
                                     isFavorite={isFavorite(t.id)} onToggleFavorite={() => toggleFavorite(t.id)} />
                             ))}
                         </div>
@@ -192,30 +267,44 @@ function HomePage({ onSelectTool, favorites, recentTools, isFavorite, toggleFavo
     )
 }
 
-// ---- Hash-based routing helpers ----
-function getToolFromHash(): Tool {
-    const hash = window.location.hash.replace('#/', '').replace('#', '')
-    if (!hash || hash === '/') return 'home'
-    const allIds = ALL_TOOLS.map(t => t.id)
-    return allIds.includes(hash as Tool) ? (hash as Tool) : 'home'
+function ToolLoading() {
+    return (
+        <div className="tool-page" aria-busy="true" aria-label="Loading tool">
+            <div className="skeleton" style={{ height: 44, width: '45%', marginBottom: '1.5rem' }} />
+            <div className="skeleton" style={{ height: 240, width: '100%', marginBottom: '1rem' }} />
+            <div className="skeleton" style={{ height: 120, width: '100%' }} />
+        </div>
+    )
 }
 
-function setHashForTool(tool: Tool) {
-    if (tool === 'home') {
-        history.pushState(null, '', window.location.pathname)
-    } else {
-        history.pushState(null, '', `#/${tool}`)
+// ---- Path-based routing (legacy #/tool links are redirected) ----
+function normalizePath(path: string): string {
+    const trimmed = path.replace(/\/+$/, '')
+    return trimmed === '' ? '/' : trimmed
+}
+
+function getToolFromLocation(): Tool {
+    const legacyHash = window.location.hash.replace(/^#\/?/, '')
+    if (legacyHash) {
+        const tool = PATH_TO_TOOL.get(normalizePath(legacyHash)) ?? (ALL_TOOLS.some(t => t.id === legacyHash) ? legacyHash as Tool : 'home')
+        history.replaceState(null, '', TOOL_PATHS[tool])
+        return tool
     }
+    return PATH_TO_TOOL.get(normalizePath(window.location.pathname)) ?? 'home'
+}
+
+function setPathForTool(tool: Tool) {
+    history.pushState(null, '', TOOL_PATHS[tool])
 }
 
 function App() {
-    const [currentTool, setCurrentTool] = useState<Tool>(getToolFromHash)
+    const [currentTool, setCurrentTool] = useState<Tool>(getToolFromLocation)
     const { favorites, toggleFavorite, isFavorite } = useFavorites()
     const { recentTools, addRecent } = useRecentlyUsed()
 
-    // Listen for popstate (back/forward)
+    // Listen for back/forward navigation
     useEffect(() => {
-        const handler = () => setCurrentTool(getToolFromHash())
+        const handler = () => setCurrentTool(getToolFromLocation())
         window.addEventListener('popstate', handler)
         return () => window.removeEventListener('popstate', handler)
     }, [])
@@ -226,18 +315,22 @@ function App() {
         document.title = seo.title
         const metaDesc = document.querySelector('meta[name="description"]')
         if (metaDesc) metaDesc.setAttribute('content', seo.desc)
+        const canonical = document.querySelector('link[rel="canonical"]')
+        if (canonical) canonical.setAttribute('href', `https://imagekitpro.com${TOOL_PATHS[currentTool]}`)
+        const ogUrl = document.querySelector('meta[property="og:url"]')
+        if (ogUrl) ogUrl.setAttribute('content', `https://imagekitpro.com${TOOL_PATHS[currentTool]}`)
     }, [currentTool])
 
     const handleSelectTool = useCallback((tool: Tool | string) => {
         const t = tool as Tool
         setCurrentTool(t)
-        setHashForTool(t)
+        setPathForTool(t)
         if (t !== 'home') addRecent(t)
     }, [addRecent])
 
     const handleBack = useCallback(() => {
         setCurrentTool('home')
-        setHashForTool('home')
+        setPathForTool('home')
     }, [])
 
     const renderTool = () => {
@@ -280,7 +373,11 @@ function App() {
                     />
                 ) : (
                     <>
-                        {renderTool()}
+                        <ErrorBoundary resetKey={currentTool}>
+                            <Suspense fallback={<ToolLoading />}>
+                                {renderTool()}
+                            </Suspense>
+                        </ErrorBoundary>
                         <ToolSuggestionsBar currentTool={currentTool} onSelectTool={handleSelectTool} />
                     </>
                 )}
