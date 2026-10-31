@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { compressImage, downloadBlob, formatFileSize, getExtension, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { buildOutputName, compressImage, downloadBlob, formatFileSize, getExtension, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
 
 interface ImageCompressorProps {
     onBack: () => void
@@ -17,6 +17,7 @@ export default function ImageCompressor({ onBack }: ImageCompressorProps) {
     const [compressedPreview, setCompressedPreview] = useState<string | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [isDragging, setIsDragging] = useState(false)
+    const [useOriginal, setUseOriginal] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Handle file selection
@@ -40,6 +41,7 @@ export default function ImageCompressor({ onBack }: ImageCompressorProps) {
         // Reset compressed state
         setCompressedBlob(null)
         setCompressedPreview(null)
+        setUseOriginal(false)
     }, [])
 
     // Handle drag and drop
@@ -69,12 +71,13 @@ export default function ImageCompressor({ onBack }: ImageCompressorProps) {
         const processImage = async () => {
             setIsProcessing(true)
             try {
-                const blob = await compressImage(file, quality, format)
+                const result = await compressImage(file, quality, format)
                 if (cancelled) return
-                setCompressedBlob(blob)
+                setUseOriginal(false)
+                setCompressedBlob(result.blob)
                 setCompressedPreview(prev => {
                     if (prev) URL.revokeObjectURL(prev)
-                    return URL.createObjectURL(blob)
+                    return URL.createObjectURL(result.blob)
                 })
             } catch (error) {
                 console.error('Error compressing image:', error)
@@ -94,9 +97,12 @@ export default function ImageCompressor({ onBack }: ImageCompressorProps) {
     const handleDownload = () => {
         if (!compressedBlob || !file) return
 
-        const baseName = file.name.replace(/\.[^/.]+$/, '')
+        if (useOriginal) {
+            downloadBlob(file, file.name)
+            return
+        }
         const extension = getExtension(format)
-        downloadBlob(compressedBlob, `${baseName}_compressed.${extension}`)
+        downloadBlob(compressedBlob, buildOutputName(file.name, 'compressed', extension))
     }
 
     // Reset and upload new image
@@ -108,8 +114,11 @@ export default function ImageCompressor({ onBack }: ImageCompressorProps) {
         setOriginalInfo(null)
         setCompressedBlob(null)
         setCompressedPreview(null)
+        setUseOriginal(false)
         if (fileInputRef.current) fileInputRef.current.value = ''
     }
+
+    const isLarger = !!(originalInfo && compressedBlob && compressedBlob.size > originalInfo.size)
 
     // Calculate compression percentage
     const compressionPercent = originalInfo && compressedBlob
@@ -213,18 +222,24 @@ export default function ImageCompressor({ onBack }: ImageCompressorProps) {
                         </div>
 
                         <div className="comparison-panel">
-                            <div className="comparison-label">Compressed {isProcessing && '(Processing...)'}</div>
-                            {compressedPreview && (
-                                <img src={compressedPreview} alt="Compressed" className="comparison-image" />
+                            <div className="comparison-label">
+                                {useOriginal ? 'Original (kept)' : 'Compressed'}{isProcessing && ' (Processing...)'}
+                            </div>
+                            {(useOriginal ? preview : compressedPreview) && (
+                                <img src={useOriginal ? preview! : compressedPreview!} alt={useOriginal ? 'Original' : 'Compressed'} className="comparison-image" />
                             )}
                             <div className="comparison-stats">
                                 <div className="stat">
-                                    <div className="stat-value">{compressedBlob ? formatFileSize(compressedBlob.size) : '-'}</div>
+                                    <div className="stat-value">
+                                        {useOriginal
+                                            ? (originalInfo ? formatFileSize(originalInfo.size) : '-')
+                                            : (compressedBlob ? formatFileSize(compressedBlob.size) : '-')}
+                                    </div>
                                     <div className="stat-label">File Size</div>
                                 </div>
                                 <div className="stat">
                                     <div className={`stat-value ${compressionPercent > 0 ? 'success' : ''}`}>
-                                        {compressionPercent > 0 ? `-${compressionPercent}%` : compressionPercent < 0 ? `+${Math.abs(compressionPercent)}%` : '-'}
+                                        {useOriginal ? '0%' : compressionPercent > 0 ? `-${compressionPercent}%` : compressionPercent < 0 ? `+${Math.abs(compressionPercent)}%` : '-'}
                                     </div>
                                     <div className="stat-label">Size Change</div>
                                 </div>
@@ -232,17 +247,34 @@ export default function ImageCompressor({ onBack }: ImageCompressorProps) {
                         </div>
                     </div>
 
+                    {isLarger && !isProcessing && (
+                        <div className="error-banner" style={{ marginTop: '1.5rem' }} role="status">
+                            <span>
+                                {useOriginal
+                                    ? 'Downloading the original file instead (no size savings).'
+                                    : `This encoding is ${formatFileSize(compressedBlob!.size)} — larger than the original ${formatFileSize(originalInfo!.size)}.`}
+                            </span>
+                            <button
+                                className="secondary-button"
+                                style={{ marginLeft: 'auto', padding: '0.4rem 0.9rem' }}
+                                onClick={() => setUseOriginal(prev => !prev)}
+                            >
+                                {useOriginal ? 'Use compressed' : 'Use original instead'}
+                            </button>
+                        </div>
+                    )}
+
                     {/* Action Buttons */}
                     <div className="actions-bar">
                         <button className="secondary-button" onClick={handleReset}>
-                            🔄 Upload New Image
+                            🔄 Start over
                         </button>
                         <button
                             className="download-button"
                             onClick={handleDownload}
                             disabled={!compressedBlob || isProcessing}
                         >
-                            ⬇️ Download Compressed Image
+                            ⬇️ {useOriginal ? 'Download Original' : 'Download Compressed Image'}
                         </button>
                     </div>
                 </>

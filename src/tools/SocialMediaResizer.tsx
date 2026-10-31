@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { useCallback, useRef, useState } from 'react'
-import { downloadBlob, formatFileSize, getImageInfo, resizeImage, type ImageInfo } from '../utils/imageProcessing'
+import { downloadBlob, formatFileSize, getExtension, getImageInfo, resizeImage, type ImageInfo } from '../utils/imageProcessing'
 import { getPopularPresets, platforms } from '../utils/socialPresets'
 
 interface SocialMediaResizerProps {
@@ -116,7 +116,7 @@ export default function SocialMediaResizer({ onBack }: SocialMediaResizerProps) 
     // Download single image
     const handleDownloadSingle = (image: ResizedImage) => {
         const baseName = file?.name.replace(/\.[^/.]+$/, '') || 'image'
-        const filename = `${baseName}_${image.preset.platform}_${image.preset.preset.replace(/\s+/g, '_')}.jpg`
+        const filename = `${baseName}_${image.preset.platform}_${image.preset.preset.replace(/\s+/g, '_')}.${getExtension(image.blob.type)}`
         downloadBlob(image.blob, filename)
     }
 
@@ -128,7 +128,7 @@ export default function SocialMediaResizer({ onBack }: SocialMediaResizerProps) 
         const baseName = file?.name.replace(/\.[^/.]+$/, '') || 'image'
 
         for (const image of resizedImages) {
-            const filename = `${image.preset.platform}_${image.preset.preset.replace(/\s+/g, '_')}.jpg`
+            const filename = `${image.preset.platform}_${image.preset.preset.replace(/\s+/g, '_')}.${getExtension(image.blob.type)}`
             zip.file(filename, image.blob)
         }
 
