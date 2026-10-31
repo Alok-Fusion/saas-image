@@ -1,3 +1,4 @@
+import { UploadCloud } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { IMAGE_ACCEPT_ATTRIBUTE, validateFiles } from '../utils/fileIntake'
 import { useToast } from './Toast'
@@ -6,24 +7,28 @@ interface DropzoneProps {
     onFiles: (files: File[]) => void
     kind?: 'image' | 'pdf'
     multiple?: boolean
-    icon?: string
-    title: string
+    icon?: ReactNode
+    title?: string
     hint?: string
     disabled?: boolean
     enablePaste?: boolean
+    onTrySample?: () => void
     children?: ReactNode
+    className?: string
 }
 
 export default function Dropzone({
     onFiles,
     kind = 'image',
     multiple = false,
-    icon = '🖼️',
-    title,
+    icon,
+    title = 'Drop an image, click to browse, or paste from clipboard',
     hint,
     disabled = false,
     enablePaste = true,
+    onTrySample,
     children,
+    className = '',
 }: DropzoneProps) {
     const [isDragging, setIsDragging] = useState(false)
     const [isChecking, setIsChecking] = useState(false)
@@ -66,7 +71,7 @@ export default function Dropzone({
 
     return (
         <div
-            className={`dropzone ${isDragging ? 'dragging' : ''} ${busy ? 'is-busy' : ''}`}
+            className={`dropzone ${isDragging ? 'dragging' : ''} ${busy ? 'is-busy' : ''} ${className}`}
             role="button"
             tabIndex={busy ? -1 : 0}
             aria-disabled={busy}
@@ -94,10 +99,27 @@ export default function Dropzone({
                 void handleFiles(event.dataTransfer.files)
             }}
         >
-            <div className="dropzone-content">
-                <div className="dropzone-icon" aria-hidden="true">{icon}</div>
+            <div className="dropzone-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div className="dropzone-icon-box" aria-hidden="true">
+                    {icon || <UploadCloud size={24} />}
+                </div>
                 <p className="dropzone-text">{isChecking ? 'Checking file…' : title}</p>
                 {hint && <p className="dropzone-hint">{hint}</p>}
+
+                {onTrySample && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onTrySample()
+                        }}
+                        className="btn btn-secondary btn-sm"
+                        style={{ marginTop: 'var(--spacing-3)' }}
+                    >
+                        Try with a sample image
+                    </button>
+                )}
+
                 {children}
             </div>
             <input

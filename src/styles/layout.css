@@ -1,0 +1,480 @@
+/* ==========================================================================
+   IMAGEKIT PRO — LAYOUT & APP SHELL
+   ========================================================================== */
+
+.app-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* --------------------------------------------------------------------------
+   Top Navigation Header
+   -------------------------------------------------------------------------- */
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-header);
+    height: 54px;
+    background-color: var(--color-bg-surface);
+    border-bottom: 1px solid var(--color-border-subtle);
+    backdrop-filter: blur(12px);
+}
+
+.header-inner {
+    max-width: 1400px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 var(--spacing-6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+}
+
+.brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    user-select: none;
+    transition: opacity var(--transition-fast);
+}
+
+.brand-logo:hover {
+    opacity: 0.85;
+}
+
+.brand-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background-color: var(--color-accent);
+    color: var(--color-accent-contrast);
+    border-radius: var(--radius-md);
+}
+
+.brand-name {
+    letter-spacing: -0.02em;
+}
+
+.brand-badge {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    color: var(--color-accent);
+    background-color: var(--color-accent-subtle);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+/* Center Search Trigger (Cmd+K) */
+.header-search-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    height: 34px;
+    padding: 0 var(--spacing-3);
+    background-color: var(--color-bg-subtle);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    min-width: 220px;
+    max-width: 380px;
+    width: 100%;
+    transition: all var(--transition-fast);
+}
+
+.header-search-btn:hover {
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-surface-elevated);
+}
+
+.header-search-hint {
+    margin-left: auto;
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    background-color: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    padding: 1px 5px;
+    border-radius: var(--radius-xs);
+    color: var(--color-text-muted);
+}
+
+/* Header Actions */
+.header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.privacy-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    background-color: var(--color-bg-subtle);
+    border: 1px solid var(--color-border-subtle);
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+}
+
+.privacy-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--color-success);
+}
+
+/* --------------------------------------------------------------------------
+   Main Container
+   -------------------------------------------------------------------------- */
+.main-viewport {
+    flex: 1 0 auto;
+    width: 100%;
+}
+
+.home-container {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: var(--spacing-10) var(--spacing-6) var(--spacing-16);
+}
+
+/* --------------------------------------------------------------------------
+   Home Hero Section
+   -------------------------------------------------------------------------- */
+.hero-section {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto var(--spacing-10);
+}
+
+.hero-headline {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-3);
+}
+
+.hero-subtext {
+    font-size: var(--font-size-md);
+    color: var(--color-text-secondary);
+    line-height: var(--line-height-normal);
+}
+
+/* Quick Start 3-Column Strip */
+.quick-start-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-8);
+}
+
+.quick-start-tile {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4) var(--spacing-5);
+    background-color: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-lg);
+    text-align: left;
+    transition: all var(--transition-fast);
+}
+
+.quick-start-tile:hover {
+    border-color: var(--color-accent);
+    background-color: var(--color-bg-subtle);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.tile-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: var(--color-accent-subtle);
+    color: var(--color-accent);
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+}
+
+.tile-text-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.tile-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+}
+
+.tile-desc {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Drop-anywhere affordance banner */
+.home-drop-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-8);
+    background-color: var(--color-bg-subtle);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    text-align: center;
+    transition: all var(--transition-fast);
+}
+
+.home-drop-banner.is-drag-over {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent-subtle);
+    color: var(--color-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Filter Chips & Tools Grid
+   -------------------------------------------------------------------------- */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    overflow-x: auto;
+    padding-bottom: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+    scrollbar-width: none;
+}
+
+.filter-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    height: 32px;
+    padding: 0 var(--spacing-3);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    background-color: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.filter-chip:hover {
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+}
+
+.filter-chip.active {
+    background-color: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-contrast);
+}
+
+.filter-chip-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-full);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.filter-chip:not(.active) .filter-chip-count {
+    background-color: var(--color-bg-subtle);
+    color: var(--color-text-muted);
+}
+
+.section-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    margin: var(--spacing-8) 0 var(--spacing-4);
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--spacing-4);
+}
+
+@media (max-width: 1180px) {
+    .tools-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 860px) {
+    .quick-start-grid {
+        grid-template-columns: 1fr;
+    }
+    .tools-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 580px) {
+    .tools-grid {
+        grid-template-columns: 1fr;
+    }
+    .header-search-btn {
+        min-width: 0;
+    }
+    .privacy-pill {
+        display: none;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Tool Card Component
+   -------------------------------------------------------------------------- */
+.tool-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-5);
+    background-color: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-lg);
+    text-align: left;
+    transition: all var(--transition-fast);
+}
+
+.tool-card:hover {
+    border-color: var(--color-border-strong);
+    background-color: var(--color-bg-surface-elevated);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+}
+
+.tool-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-3);
+}
+
+.tool-card-icon-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background-color: var(--color-accent-subtle);
+    color: var(--color-accent);
+    border-radius: var(--radius-md);
+}
+
+.tool-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.new-badge {
+    font-size: 10px;
+    font-weight: var(--font-weight-bold);
+    font-family: var(--font-mono);
+    color: var(--color-accent);
+    background-color: var(--color-accent-subtle);
+    padding: 2px 5px;
+    border-radius: var(--radius-xs);
+    letter-spacing: 0.05em;
+}
+
+.fav-star-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    transition: all var(--transition-fast);
+}
+
+.fav-star-btn:hover {
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-subtle);
+}
+
+.fav-star-btn.is-favorite {
+    color: #f59e0b;
+}
+
+.tool-card-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-1);
+    letter-spacing: -0.01em;
+}
+
+.tool-card-desc {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    line-height: var(--line-height-normal);
+}
+
+/* --------------------------------------------------------------------------
+   App Footer
+   -------------------------------------------------------------------------- */
+.app-footer {
+    border-top: 1px solid var(--color-border-subtle);
+    background-color: var(--color-bg-surface);
+    padding: var(--spacing-8) var(--spacing-6);
+    margin-top: auto;
+}
+
+.footer-inner {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+@media (max-width: 640px) {
+    .footer-inner {
+        flex-direction: column;
+        text-align: center;
+        gap: var(--spacing-2);
+    }
+}
