@@ -73,3 +73,4 @@ Heavy CPU loops are dispatched to `src/workers/image.worker.ts` with transferabl
 - Touch action (`touchAction: none`) and pointer capture configured for interactive sliders, crop areas, and brush tools.
 - Minimum tap targets styled to >= 44x44px.
 - PWA service worker precaches app shell assets and lazily caches tool chunks for offline availability.
+

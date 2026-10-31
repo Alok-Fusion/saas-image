@@ -17,3 +17,4 @@ describe('exif parser', () => {
         expect(result.hasGps).toBe(false)
     })
 })
+

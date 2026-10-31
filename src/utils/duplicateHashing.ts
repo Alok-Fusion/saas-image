@@ -48,3 +48,4 @@ export function findDuplicates(imageList: ImageWithHash[]): DuplicateGroup[] {
 
     return groups
 }
+

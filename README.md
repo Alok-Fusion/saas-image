@@ -85,7 +85,7 @@
   <img src="https://img.shields.io/badge/PWA-5A0FC8?style=flat-square&logo=pwa&logoColor=white" alt="PWA" />
 </p>
 
-- **Styling:** CSS Modules with Glassmorphism Design System
+- **Styling:** Modern tool-like design system (Linear / Raycast aesthetic), dual light & dark themes, self-hosted Geist typography, and Lucide icons
 - **AI/ML:** `@imgly/background-removal`, `tesseract.js`
 - **PDF Engine:** `jspdf`, `pdf-lib`, `pdfjs-dist`
 - **Visualization:** `Canvas API` for real-time processing

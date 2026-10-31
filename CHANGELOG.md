@@ -77,13 +77,42 @@ All notable changes and architectural enhancements to ImageKit Pro are documente
   - Added Vitest 5 suite with 8 test files and 48 unit tests covering `imageProcessing`, `socialPresets`, `fileIntake`, `toolSuggestions`, `duplicateHashing`, `concurrency`, `exif`, and custom hooks.
   - Added GitHub Actions CI workflow in `.github/workflows/ci.yml`.
 
+### Phase 5: Design System & UX Redesign (Linear / Raycast / Figma Aesthetic)
+- **Calm, Tool-Like Aesthetic**:
+  - Replaced generic purple/pink gradients, glassmorphism blur, and glow shadows with a focused, professional creative utility aesthetic.
+  - Neutral surfaces (`#0b0b0e` / `#16161c` dark, `#fafafa` / `#ffffff` light) with 1px hairline borders (`#26262e` / `#e4e4e9`).
+  - Single confident accent color: electric indigo (`#4f46e5` / `#6366f1`) for primary actions, focus rings, sliders, and active tabs.
+- **First-Class Dual Themes (Light & Dark)**:
+  - System preference auto-detection with header theme switcher toggle.
+  - Persisted in `localStorage` with safe exception handling.
+  - Zero-flash inline theme bootstrap script in `<head>` of `index.html`.
+  - Full WCAG AA contrast compliance across all text levels and controls in both themes.
+- **Self-Hosted Typography & Mono Scale**:
+  - Replaced Google Fonts CDN requests with self-hosted Geist (`@fontsource/geist-sans` and `@fontsource/geist-mono`) with `font-display: swap`.
+  - Pure tabular numerals (`.tabular-nums`) for file sizes, dimensions, percentages, and timer counters.
+- **Unified Lucide Icons**:
+  - Replaced all emoji tool and action icons with tree-shaken `lucide-react` icons in tinted squares.
+- **Modular CSS Architecture**:
+  - Split global stylesheet into `src/styles/` (`tokens.css`, `base.css`, `layout.css`, `components.css`, `workspace.css`, `tools.css`) with CSS custom properties and backwards-compatibility variable aliases.
+- **Shared Atomic UI Library**:
+  - Built reusable, accessible components in `src/components/`: `Button`, `ControlGroup`, `Slider`, `SegmentedControl`, `Toggle`, `StatTile`, `FileChip`, `ProgressBar`, `EmptyState`, `CompareView`, `ToolHeader`, `WorkspaceLayout`, `CommandPalette`, `ThemeToggle`, `FileActionChooser`, and `Dropzone`.
+- **Desktop 2-Column Workspace Layout Across All 20 Tools**:
+  - Replaced repetitive stacked layouts with a 2-column workspace: fixed left controls rail (320–360px), center checkerboard canvas with pan/zoom/fit/compare affordances, and sticky bottom action bar with mono StatTiles.
+  - Single-column responsive adaptation for tablet and mobile viewports.
+  - Migrated all 20 image tools to `WorkspaceLayout` and `ToolHeader`.
+- **Command Palette & Home Drag-and-Drop Action Chooser**:
+  - Added global Cmd+K / Ctrl+K spotlight dialog for jumping to any of the 20 tools by title or keywords.
+  - Dropping any image onto the Home page opens an interactive "What do you want to do with this image?" chooser modal that launches the chosen tool with the file already loaded.
+- **Seamless Cross-Tool Image Chaining**:
+  - Added bottom tool chaining suggestion chips carrying the active output file from one tool to the next.
+
 ---
 
 ## Deliberately Preserved Architectural Choices
 
 1. **Zero-Backend Privacy Guarantee**: All image processing remains 100% inside the browser using HTML5 Canvas, OffscreenCanvas, and Web Workers. No remote uploads or analytics transmitting image data.
-2. **Visual Design System**: Preserved the dark mode glassmorphism theme, gradients, typography, and card aesthetic in `src/index.css`.
-3. **Legacy URL Compatibility**: Preserved backwards compatibility for existing `#/<tool>` links by redirecting them transparently to the canonical path-based routes.
+2. **Legacy URL Compatibility**: Preserved backwards compatibility for existing `#/<tool>` links by redirecting them transparently to the canonical path-based routes.
+3. **No Unnecessary External Dependencies**: UI redesign implemented purely using standard CSS variables, modern HTML, and `lucide-react` without bloated UI component libraries.
 
 ---
 
@@ -92,3 +121,4 @@ All notable changes and architectural enhancements to ImageKit Pro are documente
 1. **WebGPU Acceleration**: Leverage WebGPU for AI models (`@imgly/background-removal`) where supported for faster inference.
 2. **WebAssembly HEIC Decoder**: Bundle a lightweight WASM decoder (such as `libheif-js`) conditionally so iPhone users can convert HEIC images directly without pre-exporting.
 3. **Batch Processing**: Extend multi-file concurrency queues to image resizing and watermark application.
+

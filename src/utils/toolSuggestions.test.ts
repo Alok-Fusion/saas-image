@@ -22,3 +22,4 @@ describe('toolSuggestions', () => {
         expect(Array.isArray(suggestions)).toBe(true)
     })
 })
+

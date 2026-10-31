@@ -173,3 +173,4 @@ for (const route of ROUTES) {
 }
 
 console.log(`Prerendered ${ROUTES.length} static HTML route pages in dist/`)
+
