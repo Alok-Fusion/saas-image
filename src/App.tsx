@@ -27,6 +27,7 @@ import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from
 import CommandPalette from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
 import FileActionChooser from './components/FileActionChooser'
+import ReduceEffectsToggle from './components/ReduceEffectsToggle'
 import ThemeToggle from './components/ThemeToggle'
 import { useFavorites } from './hooks/useFavorites'
 import { useRecentlyUsed } from './hooks/useRecentlyUsed'
@@ -279,6 +280,7 @@ function Header({
                 </button>
 
                 <div className="header-actions">
+                    <ReduceEffectsToggle />
                     <div className="privacy-pill">
                         <span className="privacy-dot" />
                         <span>100% In-Browser</span>
