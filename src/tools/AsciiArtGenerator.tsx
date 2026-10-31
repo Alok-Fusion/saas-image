@@ -1,169 +1,87 @@
-import { useCallback, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import { downloadBlob } from '../utils/imageProcessing'
+import { runImageTask, type WorkerTask } from '../utils/imageWorker'
+import type { CharSetKey } from '../workers/types'
 
 interface AsciiArtGeneratorProps {
     onBack: () => void
 }
 
-const CHAR_SETS = {
-    standard: ' .:-=+*#%@',
-    blocks: ' ░▒▓█',
-    simple: ' .-:=+*#'
-} as const
-
 export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [asciiArt, setAsciiArt] = useState<string>('')
     const [width, setWidth] = useState(100)
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
     const [copied, setCopied] = useState(false)
-    const [charSet, setCharSet] = useState<'standard' | 'blocks' | 'simple'>('standard')
+    const [charSet, setCharSet] = useState<CharSetKey>('standard')
     const [inverted, setInverted] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const preview = useObjectUrl(file)
+    const taskRef = useRef<WorkerTask<string> | null>(null)
+    const { success, error } = useToast()
 
-    // Generate ASCII art from image
-    const generateAsciiArt = useCallback(async (imageFile: File, outputWidth: number): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            const url = URL.createObjectURL(imageFile)
-
-            img.onload = () => {
-                URL.revokeObjectURL(url)
-
-                const aspectRatio = img.height / img.width
-                const outputHeight = Math.floor(outputWidth * aspectRatio * 0.5) // 0.5 for character aspect ratio
-
-                const canvas = document.createElement('canvas')
-                canvas.width = outputWidth
-                canvas.height = outputHeight
-
-                const ctx = canvas.getContext('2d')
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'))
-                    return
-                }
-
-                ctx.drawImage(img, 0, 0, outputWidth, outputHeight)
-                const imageData = ctx.getImageData(0, 0, outputWidth, outputHeight)
-                const pixels = imageData.data
-
-                const chars = inverted ? CHAR_SETS[charSet].split('').reverse().join('') : CHAR_SETS[charSet]
-                let result = ''
-
-                for (let y = 0; y < outputHeight; y++) {
-                    for (let x = 0; x < outputWidth; x++) {
-                        const idx = (y * outputWidth + x) * 4
-                        const r = pixels[idx]
-                        const g = pixels[idx + 1]
-                        const b = pixels[idx + 2]
-
-                        // Calculate brightness (0-255)
-                        const brightness = (r * 0.299 + g * 0.587 + b * 0.114)
-
-                        // Map brightness to character
-                        const charIdx = Math.floor((brightness / 255) * (chars.length - 1))
-                        result += chars[charIdx]
-                    }
-                    result += '\n'
-                }
-
-                resolve(result)
-            }
-
-            img.onerror = () => {
-                URL.revokeObjectURL(url)
-                reject(new Error('Failed to load image'))
-            }
-
-            img.src = url
+    const generate = useCallback(async (imageFile: File, outputWidth: number) => {
+        taskRef.current?.cancel()
+        setIsProcessing(true)
+        const task = runImageTask<string>({
+            kind: 'ascii',
+            file: imageFile,
+            width: outputWidth,
+            charSet,
+            inverted,
         })
-    }, [charSet, inverted])
+        taskRef.current = task
 
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
+        try {
+            const art = await task.promise
+            setAsciiArt(art)
+        } catch (err) {
+            if (!(err instanceof Error && err.name === 'AbortError')) {
+                error(err instanceof Error ? err.message : 'Could not generate ASCII art')
+            }
+        } finally {
+            if (taskRef.current === task) setIsProcessing(false)
         }
+    }, [charSet, error, inverted])
 
+    const handleFile = useCallback((selectedFile: File) => {
         setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
         setAsciiArt('')
+        void generate(selectedFile, width)
+    }, [generate, width])
 
-        // Auto-generate
-        setIsProcessing(true)
+    useEffect(() => () => taskRef.current?.cancel(), [])
+
+    const regenerate = () => {
+        if (file) void generate(file, width)
+    }
+
+    const cancel = () => {
+        taskRef.current?.cancel()
+    }
+
+    const copyArt = async () => {
         try {
-            const art = await generateAsciiArt(selectedFile, width)
-            setAsciiArt(art)
-        } catch (error) {
-            console.error('Error generating ASCII art:', error)
-        } finally {
-            setIsProcessing(false)
-        }
-    }, [generateAsciiArt, width])
-
-    // Regenerate when settings change
-    const regenerate = async () => {
-        if (!file) return
-
-        setIsProcessing(true)
-        try {
-            const art = await generateAsciiArt(file, width)
-            setAsciiArt(art)
-        } catch (error) {
-            console.error('Error generating ASCII art:', error)
-        } finally {
-            setIsProcessing(false)
+            await navigator.clipboard.writeText(asciiArt)
+            setCopied(true)
+            success('ASCII art copied to clipboard')
+            setTimeout(() => setCopied(false), 2000)
+        } catch {
+            error('Clipboard access was blocked by your browser')
         }
     }
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Copy to clipboard
-    const copyArt = () => {
-        navigator.clipboard.writeText(asciiArt)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-    }
-
-    // Download as text file
     const downloadArt = () => {
-        const blob = new Blob([asciiArt], { type: 'text/plain' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = 'ascii_art.txt'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+        if (!asciiArt) return
+        downloadBlob(new Blob([asciiArt], { type: 'text/plain' }), 'ascii-art.txt')
     }
 
-    // Reset
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
+        taskRef.current?.cancel()
         setFile(null)
-        setPreview(null)
         setAsciiArt('')
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     return (
@@ -174,31 +92,16 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
             </div>
 
             {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">🖌️</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">Convert photos into ASCII text art</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
+                <Dropzone
+                    onFiles={(files) => handleFile(files[0])}
+                    icon="🖌️"
+                    title="Drop your image here or click to browse"
+                    hint="Convert photos into ASCII text art"
+                />
             ) : (
                 <>
-                    {/* Controls */}
                     <div className="controls-panel">
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                        <div className="responsive-grid responsive-grid-3">
                             <div className="control-group">
                                 <label className="control-label">
                                     <span>Width</span>
@@ -247,7 +150,16 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
                                 <div className="toggle-container">
                                     <div
                                         className={`toggle ${inverted ? 'active' : ''}`}
+                                        role="switch"
+                                        aria-checked={inverted}
+                                        tabIndex={0}
                                         onClick={() => setInverted(!inverted)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault()
+                                                setInverted(!inverted)
+                                            }
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -263,23 +175,25 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
                         </button>
                     </div>
 
-                    {/* Side by side view */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
+                    <div className="ascii-layout">
                         <div className="image-preview-container" style={{ margin: 0, padding: '1rem' }}>
-                            <img src={preview!} alt="Original" style={{ width: '100%', borderRadius: '8px' }} />
+                            {preview && (
+                                <img src={preview} alt="Original" style={{ width: '100%', borderRadius: '8px' }} />
+                            )}
                             <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)' }}>
                                 Original
                             </div>
                         </div>
 
                         <div className="controls-panel" style={{ margin: 0, overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
                                 <h4>ASCII Art</h4>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <button
                                         className="secondary-button"
                                         onClick={copyArt}
                                         style={{ padding: '0.5rem 1rem' }}
+                                        disabled={!asciiArt}
                                     >
                                         {copied ? '✓ Copied!' : '📋 Copy'}
                                     </button>
@@ -287,6 +201,7 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
                                         className="secondary-button"
                                         onClick={downloadArt}
                                         style={{ padding: '0.5rem 1rem' }}
+                                        disabled={!asciiArt}
                                     >
                                         ⬇️ Download
                                     </button>
@@ -306,12 +221,11 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
                                 whiteSpace: 'pre',
                                 margin: 0
                             }}>
-                                {asciiArt || 'Generating...'}
+                                {asciiArt || (isProcessing ? 'Generating...' : 'Adjust settings and regenerate.')}
                             </pre>
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="actions-bar">
                         <button className="secondary-button" onClick={handleReset}>
                             🔄 Upload New Image
@@ -320,12 +234,14 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
                 </>
             )}
 
-            {/* Processing Overlay */}
             {isProcessing && (
                 <div className="processing-overlay">
                     <div className="processing-content">
                         <div className="processing-spinner" />
                         <div className="processing-text">Generating ASCII Art...</div>
+                        <button className="secondary-button" style={{ marginTop: '1rem' }} onClick={cancel}>
+                            Cancel
+                        </button>
                     </div>
                 </div>
             )}

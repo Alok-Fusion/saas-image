@@ -1,181 +1,91 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
 import { getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { runImageTask, type PaletteColor, type WorkerTask } from '../utils/imageWorker'
 
 interface ColorPaletteExtractorProps {
     onBack: () => void
 }
 
-interface ColorInfo {
-    hex: string
-    rgb: string
-    count: number
-    percentage: number
-}
-
 export default function ColorPaletteExtractor({ onBack }: ColorPaletteExtractorProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
-    const [colors, setColors] = useState<ColorInfo[]>([])
+    const [colors, setColors] = useState<PaletteColor[]>([])
     const [colorCount, setColorCount] = useState(6)
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const preview = useObjectUrl(file)
+    const taskRef = useRef<WorkerTask<PaletteColor[]> | null>(null)
+    const { success, error } = useToast()
 
-    // Extract dominant colors from image
-    const extractColors = async (imageFile: File, numColors: number): Promise<ColorInfo[]> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            const url = URL.createObjectURL(imageFile)
-
-            img.onload = () => {
-                URL.revokeObjectURL(url)
-
-                // Create small canvas for sampling
-                const canvas = document.createElement('canvas')
-                const size = 100 // Sample at lower resolution
-                canvas.width = size
-                canvas.height = size
-
-                const ctx = canvas.getContext('2d')
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'))
-                    return
-                }
-
-                ctx.drawImage(img, 0, 0, size, size)
-                const imageData = ctx.getImageData(0, 0, size, size)
-                const pixels = imageData.data
-
-                // Color quantization using median cut algorithm (simplified)
-                const colorMap: Map<string, number> = new Map()
-
-                for (let i = 0; i < pixels.length; i += 4) {
-                    const r = Math.round(pixels[i] / 16) * 16
-                    const g = Math.round(pixels[i + 1] / 16) * 16
-                    const b = Math.round(pixels[i + 2] / 16) * 16
-                    const key = `${r},${g},${b}`
-                    colorMap.set(key, (colorMap.get(key) || 0) + 1)
-                }
-
-                // Sort by frequency
-                const sorted = Array.from(colorMap.entries())
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, numColors)
-
-                const totalPixels = pixels.length / 4
-                const colorInfos: ColorInfo[] = sorted.map(([key, count]) => {
-                    const [r, g, b] = key.split(',').map(Number)
-                    const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-                    return {
-                        hex: hex.toUpperCase(),
-                        rgb: `rgb(${r}, ${g}, ${b})`,
-                        count,
-                        percentage: Math.round((count / totalPixels) * 100)
-                    }
-                })
-
-                resolve(colorInfos)
-            }
-
-            img.onerror = () => {
-                URL.revokeObjectURL(url)
-                reject(new Error('Failed to load image'))
-            }
-
-            img.src = url
-        })
-    }
-
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
-
-        setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
-        setColors([])
-
+    const extractColors = useCallback(async (imageFile: File, numColors: number) => {
+        taskRef.current?.cancel()
+        setIsProcessing(true)
+        const task = runImageTask<PaletteColor[]>({ kind: 'palette', file: imageFile, numColors })
+        taskRef.current = task
         try {
-            const info = await getImageInfo(selectedFile)
-            setOriginalInfo(info)
-
-            setIsProcessing(true)
-            const extractedColors = await extractColors(selectedFile, colorCount)
-            setColors(extractedColors)
-        } catch (error) {
-            console.error('Error processing image:', error)
-        } finally {
-            setIsProcessing(false)
-        }
-    }, [colorCount])
-
-    // Re-extract with different color count
-    const handleColorCountChange = async (count: number) => {
-        setColorCount(count)
-        if (file) {
-            setIsProcessing(true)
-            try {
-                const extractedColors = await extractColors(file, count)
-                setColors(extractedColors)
-            } catch (error) {
-                console.error('Error extracting colors:', error)
-            } finally {
-                setIsProcessing(false)
+            setColors(await task.promise)
+        } catch (err) {
+            if (!(err instanceof Error && err.name === 'AbortError')) {
+                error(err instanceof Error ? err.message : 'Could not extract colors')
             }
+        } finally {
+            if (taskRef.current === task) setIsProcessing(false)
+        }
+    }, [error])
+
+    const handleFile = useCallback(async (selectedFile: File) => {
+        setFile(selectedFile)
+        setColors([])
+        try {
+            setOriginalInfo(await getImageInfo(selectedFile))
+        } catch {
+            setOriginalInfo(null)
+        }
+        void extractColors(selectedFile, colorCount)
+    }, [colorCount, extractColors])
+
+    useEffect(() => () => taskRef.current?.cancel(), [])
+
+    const handleColorCountChange = (count: number) => {
+        setColorCount(count)
+        if (file) void extractColors(file, count)
+    }
+
+    const copyColor = async (color: string, index: number) => {
+        try {
+            await navigator.clipboard.writeText(color)
+            setCopiedIndex(index)
+            success(`${color} copied`)
+            setTimeout(() => setCopiedIndex(null), 1500)
+        } catch {
+            error('Clipboard access was blocked by your browser')
         }
     }
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Copy color to clipboard
-    const copyColor = (color: string, index: number) => {
-        navigator.clipboard.writeText(color)
-        setCopiedIndex(index)
-        setTimeout(() => setCopiedIndex(null), 1500)
-    }
-
-    // Copy all as CSS
-    const copyAsCss = () => {
+    const copyAsCss = async () => {
+        if (colors.length === 0) return
         const css = colors.map((c, i) => `--color-${i + 1}: ${c.hex};`).join('\n')
-        navigator.clipboard.writeText(css)
-        alert('CSS variables copied to clipboard!')
+        try {
+            await navigator.clipboard.writeText(css)
+            success('CSS variables copied to clipboard')
+        } catch {
+            error('Clipboard access was blocked by your browser')
+        }
     }
 
-    // Generate gradient
     const generateGradient = () => {
         if (colors.length < 2) return ''
         return `linear-gradient(135deg, ${colors.slice(0, 3).map(c => c.hex).join(', ')})`
     }
 
-    // Reset
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
+        taskRef.current?.cancel()
         setFile(null)
-        setPreview(null)
         setOriginalInfo(null)
         setColors([])
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     return (
@@ -186,32 +96,17 @@ export default function ColorPaletteExtractor({ onBack }: ColorPaletteExtractorP
             </div>
 
             {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">🎨</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">Extract dominant colors with hex codes & CSS</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
+                <Dropzone
+                    onFiles={(files) => void handleFile(files[0])}
+                    icon="🎨"
+                    title="Drop your image here or click to browse"
+                    hint="Extract dominant colors with hex codes & CSS"
+                />
             ) : (
                 <>
-                    {/* Image Preview & Palette Side by Side */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
+                    <div className="palette-layout">
                         <div className="image-preview-container" style={{ margin: 0 }}>
-                            <img src={preview!} alt="Preview" className="image-preview" />
+                            {preview && <img src={preview} alt="Preview" className="image-preview" />}
                             <div className="image-info">
                                 <span className="info-badge">
                                     <span className="info-badge-value">{originalInfo ? `${originalInfo.width}×${originalInfo.height}` : '-'}</span>
@@ -238,7 +133,6 @@ export default function ColorPaletteExtractor({ onBack }: ColorPaletteExtractorP
                                 </div>
                             </div>
 
-                            {/* Color Palette */}
                             <div style={{ marginTop: '1.5rem' }}>
                                 <h4 style={{ marginBottom: '1rem' }}>Extracted Palette</h4>
                                 <div style={{ display: 'grid', gap: '0.5rem' }}>
@@ -249,8 +143,17 @@ export default function ColorPaletteExtractor({ onBack }: ColorPaletteExtractorP
                                     ) : (
                                         colors.map((color, index) => (
                                             <div
-                                                key={index}
-                                                onClick={() => copyColor(color.hex, index)}
+                                                key={`${color.hex}-${index}`}
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-label={`Copy ${color.hex}`}
+                                                onClick={() => void copyColor(color.hex, index)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault()
+                                                        void copyColor(color.hex, index)
+                                                    }
+                                                }}
                                                 style={{
                                                     display: 'flex',
                                                     alignItems: 'center',
@@ -288,7 +191,6 @@ export default function ColorPaletteExtractor({ onBack }: ColorPaletteExtractorP
                         </div>
                     </div>
 
-                    {/* Gradient Preview */}
                     {colors.length >= 2 && (
                         <div className="controls-panel" style={{ marginTop: '1.5rem' }}>
                             <h4 style={{ marginBottom: '1rem' }}>Generated Gradient</h4>
@@ -313,12 +215,11 @@ export default function ColorPaletteExtractor({ onBack }: ColorPaletteExtractorP
                         </div>
                     )}
 
-                    {/* Action Buttons */}
                     <div className="actions-bar">
                         <button className="secondary-button" onClick={handleReset}>
                             🔄 Upload New Image
                         </button>
-                        <button className="secondary-button" onClick={copyAsCss}>
+                        <button className="secondary-button" onClick={() => void copyAsCss()} disabled={colors.length === 0}>
                             📋 Copy as CSS Variables
                         </button>
                     </div>

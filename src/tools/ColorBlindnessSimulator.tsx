@@ -1,5 +1,10 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
 import { downloadBlob, formatFileSize, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { runImageTask, type WorkerTask } from '../utils/imageWorker'
+import type { ColorblindMatrix } from '../workers/types'
 
 interface ColorBlindnessSimulatorProps {
     onBack: () => void
@@ -9,7 +14,7 @@ interface ColorBlindnessType {
     id: string
     name: string
     description: string
-    matrix: number[][]
+    matrix: ColorblindMatrix
 }
 
 const COLOR_BLINDNESS_TYPES: ColorBlindnessType[] = [
@@ -95,150 +100,113 @@ const COLOR_BLINDNESS_TYPES: ColorBlindnessType[] = [
     }
 ]
 
-function simulateColorBlindness(imageFile: File, type: ColorBlindnessType): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-        const img = new Image()
-        const url = URL.createObjectURL(imageFile)
-
-        img.onload = () => {
-            URL.revokeObjectURL(url)
-
-            const canvas = document.createElement('canvas')
-            canvas.width = img.width
-            canvas.height = img.height
-
-            const ctx = canvas.getContext('2d')
-            if (!ctx) {
-                reject(new Error('Failed to get canvas context'))
-                return
-            }
-
-            ctx.drawImage(img, 0, 0)
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-            const data = imageData.data
-
-            const matrix = type.matrix
-
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i]
-                const g = data[i + 1]
-                const b = data[i + 2]
-
-                data[i] = Math.min(255, Math.max(0, r * matrix[0][0] + g * matrix[0][1] + b * matrix[0][2]))
-                data[i + 1] = Math.min(255, Math.max(0, r * matrix[1][0] + g * matrix[1][1] + b * matrix[1][2]))
-                data[i + 2] = Math.min(255, Math.max(0, r * matrix[2][0] + g * matrix[2][1] + b * matrix[2][2]))
-            }
-
-            ctx.putImageData(imageData, 0, 0)
-
-            canvas.toBlob(
-                (blob) => {
-                    if (blob) resolve(blob)
-                    else reject(new Error('Failed to create simulated image'))
-                },
-                'image/png'
-            )
-        }
-
-        img.onerror = () => {
-            URL.revokeObjectURL(url)
-            reject(new Error('Failed to load image'))
-        }
-
-        img.src = url
-    })
-}
-
-async function generateAllSimulations(imageFile: File): Promise<Map<string, { blob: Blob; url: string }>> {
-    const newImages = new Map<string, { blob: Blob; url: string }>()
-
-    for (const type of COLOR_BLINDNESS_TYPES) {
-        const blob = await simulateColorBlindness(imageFile, type)
-        newImages.set(type.id, { blob, url: URL.createObjectURL(blob) })
-    }
-
-    return newImages
+interface Simulation {
+    blob: Blob
+    url: string
 }
 
 export default function ColorBlindnessSimulator({ onBack }: ColorBlindnessSimulatorProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
-    const [simulatedImages, setSimulatedImages] = useState<Map<string, { blob: Blob; url: string }>>(new Map())
+    const [simulatedImages, setSimulatedImages] = useState<Map<string, Simulation>>(new Map())
     const [selectedType, setSelectedType] = useState<ColorBlindnessType>(COLOR_BLINDNESS_TYPES[0])
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
+    const [isDownloading, setIsDownloading] = useState(false)
+    const [progress, setProgress] = useState(0)
     const [viewMode, setViewMode] = useState<'single' | 'grid'>('single')
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const preview = useObjectUrl(file)
+    const tasksRef = useRef<Set<WorkerTask<Blob>>>(new Set())
+    const simulationsRef = useRef<Map<string, Simulation>>(new Map())
+    const { error } = useToast()
 
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
+    useEffect(() => {
+        simulationsRef.current = simulatedImages
+    }, [simulatedImages])
 
-        setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
+    const clearSimulations = () => {
+        simulationsRef.current.forEach((img) => URL.revokeObjectURL(img.url))
+        setSimulatedImages(new Map())
+    }
 
-        try {
-            const info = await getImageInfo(selectedFile)
-            setOriginalInfo(info)
-        } catch (error) {
-            console.error('Error getting image info:', error)
-        }
+    useEffect(() => () => {
+        tasksRef.current.forEach((task) => task.cancel())
+        simulationsRef.current.forEach((img) => URL.revokeObjectURL(img.url))
+    }, [])
 
-        // Clear old simulations
-        simulatedImages.forEach(img => URL.revokeObjectURL(img.url))
-
-        // Generate all simulations
+    const generateAll = useCallback(async (imageFile: File) => {
+        clearSimulations()
         setIsProcessing(true)
+        setProgress(0)
+        const next = new Map<string, Simulation>()
+
         try {
-            const images = await generateAllSimulations(selectedFile)
-            setSimulatedImages(images)
-        } catch (error) {
-            console.error('Error generating simulations:', error)
+            for (let index = 0; index < COLOR_BLINDNESS_TYPES.length; index++) {
+                const type = COLOR_BLINDNESS_TYPES[index]
+                const task = runImageTask<Blob>({
+                    kind: 'colorblind',
+                    file: imageFile,
+                    matrix: type.matrix,
+                    maxDimension: 1400,
+                })
+                tasksRef.current.add(task)
+                try {
+                    const blob = await task.promise
+                    next.set(type.id, { blob, url: URL.createObjectURL(blob) })
+                    setSimulatedImages(new Map(next))
+                    setProgress(Math.round(((index + 1) / COLOR_BLINDNESS_TYPES.length) * 100))
+                } finally {
+                    tasksRef.current.delete(task)
+                }
+            }
+        } catch (err) {
+            if (!(err instanceof Error && err.name === 'AbortError')) {
+                error(err instanceof Error ? err.message : 'Could not generate simulations')
+            }
         } finally {
             setIsProcessing(false)
         }
-    }, [simulatedImages])
+    }, [error])
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
+    const handleFile = useCallback(async (selectedFile: File) => {
+        setFile(selectedFile)
+        try {
+            setOriginalInfo(await getImageInfo(selectedFile))
+        } catch {
+            setOriginalInfo(null)
+        }
+        void generateAll(selectedFile)
+    }, [generateAll])
 
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Download current simulation
-    const handleDownload = () => {
-        const simulated = simulatedImages.get(selectedType.id)
-        if (!simulated || !file) return
-        const baseName = file.name.replace(/\.[^/.]+$/, '')
-        downloadBlob(simulated.blob, `${baseName}_${selectedType.id}.png`)
+    const cancel = () => {
+        tasksRef.current.forEach((task) => task.cancel())
+        setIsProcessing(false)
     }
 
-    // Reset
+    const handleDownload = async () => {
+        if (!file) return
+        setIsDownloading(true)
+        try {
+            const blob = await runImageTask<Blob>({
+                kind: 'colorblind',
+                file,
+                matrix: selectedType.matrix,
+            }).promise
+            const baseName = file.name.replace(/\.[^/.]+$/, '') || 'image'
+            downloadBlob(blob, `${baseName}-${selectedType.id}.png`)
+        } catch (err) {
+            if (!(err instanceof Error && err.name === 'AbortError')) {
+                error(err instanceof Error ? err.message : 'Could not export the image')
+            }
+        } finally {
+            setIsDownloading(false)
+        }
+    }
+
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
-        simulatedImages.forEach(img => URL.revokeObjectURL(img.url))
+        cancel()
+        clearSimulations()
         setFile(null)
-        setPreview(null)
         setOriginalInfo(null)
-        setSimulatedImages(new Map())
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     const currentImage = simulatedImages.get(selectedType.id)
@@ -251,26 +219,12 @@ export default function ColorBlindnessSimulator({ onBack }: ColorBlindnessSimula
             </div>
 
             {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">🎭</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">See how images appear to people with color blindness</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
+                <Dropzone
+                    onFiles={(files) => void handleFile(files[0])}
+                    icon="🎭"
+                    title="Drop your image here or click to browse"
+                    hint="See how images appear to people with color blindness"
+                />
             ) : (
                 <>
                     {/* View Mode Toggle */}
@@ -392,8 +346,8 @@ export default function ColorBlindnessSimulator({ onBack }: ColorBlindnessSimula
                             🔄 Upload New Image
                         </button>
                         {viewMode === 'single' && currentImage && (
-                            <button className="download-button" onClick={handleDownload}>
-                                ⬇️ Download {selectedType.name}
+                            <button className="download-button" onClick={() => void handleDownload()} disabled={isDownloading}>
+                                {isDownloading ? 'Preparing…' : `⬇️ Download ${selectedType.name}`}
                             </button>
                         )}
                     </div>
@@ -405,7 +359,13 @@ export default function ColorBlindnessSimulator({ onBack }: ColorBlindnessSimula
                 <div className="processing-overlay">
                     <div className="processing-content">
                         <div className="processing-spinner" />
-                        <div className="processing-text">Generating Simulations...</div>
+                        <div className="processing-text">Generating Simulations... {progress}%</div>
+                        <div className="progress-track" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+                            <div className="progress-fill" style={{ width: `${progress}%` }} />
+                        </div>
+                        <button className="secondary-button" style={{ marginTop: '1rem' }} onClick={cancel}>
+                            Cancel
+                        </button>
                     </div>
                 </div>
             )}

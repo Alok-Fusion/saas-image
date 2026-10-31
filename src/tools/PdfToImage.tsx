@@ -1,6 +1,6 @@
-import { saveAs } from 'file-saver'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { buildOutputName, downloadBlob } from '../utils/imageProcessing'
 
 interface PdfToImageProps {
     onBack: () => void
@@ -142,19 +142,18 @@ export default function PdfToImage({ onBack }: PdfToImageProps) {
     }, [handleFile])
 
     const downloadSingle = (page: RenderedPage, index: number) => {
-        const baseName = file?.name.replace(/\.pdf$/i, '') || 'document'
-        saveAs(page.blob, `${baseName}-page-${index + 1}.png`)
+        downloadBlob(page.blob, buildOutputName(file?.name || 'document.pdf', `page-${index + 1}`, 'png'))
     }
 
     const downloadAll = async () => {
         const JSZip = (await import('jszip')).default
         const zip = new JSZip()
-        const baseName = file?.name.replace(/\.pdf$/i, '') || 'document'
+        const baseName = (file?.name || 'document').replace(/\.pdf$/i, '') || 'document'
         pages.forEach((page, i) => {
             zip.file(`${baseName}-page-${i + 1}.png`, page.blob)
         })
         const content = await zip.generateAsync({ type: 'blob' })
-        saveAs(content, `${baseName}-pages.zip`)
+        downloadBlob(content, `${baseName}-pages.zip`)
     }
 
     const handleReset = () => {

@@ -1,5 +1,17 @@
-import { useCallback, useRef, useState } from 'react'
-import { downloadBlob, formatFileSize, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { useCallback, useEffect, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import {
+    buildOutputName,
+    canvasToBlob,
+    downloadBlob,
+    formatFileSize,
+    getImageInfo,
+    getOutputMime,
+    loadImage,
+    type ImageInfo,
+} from '../utils/imageProcessing'
 
 interface ImageRotatorProps {
     onBack: () => void
@@ -7,107 +19,84 @@ interface ImageRotatorProps {
 
 export default function ImageRotator({ onBack }: ImageRotatorProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
     const [rotation, setRotation] = useState(0)
     const [flipH, setFlipH] = useState(false)
     const [flipV, setFlipV] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const preview = useObjectUrl(file)
+    const { error } = useToast()
 
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
+    useEffect(() => {
+        if (!file) return
+        let active = true
+        getImageInfo(file)
+            .then((info) => { if (active) setOriginalInfo(info) })
+            .catch((err) => { if (active) error(err instanceof Error ? err.message : 'Could not read the image') })
+        return () => { active = false }
+    }, [error, file])
 
+    const handleFile = useCallback((selectedFile: File) => {
         setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
         setRotation(0)
         setFlipH(false)
         setFlipV(false)
-
-        try {
-            const info = await getImageInfo(selectedFile)
-            setOriginalInfo(info)
-        } catch (error) {
-            console.error('Error getting image info:', error)
-        }
     }, [])
-
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
 
     // Rotate
     const rotate = (degrees: number) => {
         setRotation((prev) => (prev + degrees + 360) % 360)
     }
 
-    // Apply transformations and download
     const handleDownload = async () => {
-        if (!file || !originalInfo) return
+        if (!file || !originalInfo || isProcessing) return
+        setIsProcessing(true)
+        try {
+            const img = await loadImage(file)
+            const radians = (rotation * Math.PI) / 180
+            const cos = Math.abs(Math.cos(radians))
+            const sin = Math.abs(Math.sin(radians))
+            const width = originalInfo.width
+            const height = originalInfo.height
+            const canvas = document.createElement('canvas')
+            canvas.width = Math.max(1, Math.round(width * cos + height * sin))
+            canvas.height = Math.max(1, Math.round(width * sin + height * cos))
+            const ctx = canvas.getContext('2d')
+            if (!ctx) throw new Error('Canvas is not available')
 
-        const img = new Image()
-        img.src = preview!
-
-        await new Promise(resolve => img.onload = resolve)
-
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-
-        // Swap dimensions for 90/270 degree rotations
-        const isRotated = rotation === 90 || rotation === 270
-        canvas.width = isRotated ? originalInfo.height : originalInfo.width
-        canvas.height = isRotated ? originalInfo.width : originalInfo.height
-
-        ctx.translate(canvas.width / 2, canvas.height / 2)
-        ctx.rotate((rotation * Math.PI) / 180)
-        ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
-        ctx.drawImage(img, -originalInfo.width / 2, -originalInfo.height / 2)
-
-        canvas.toBlob((blob) => {
-            if (blob) {
-                const baseName = file.name.replace(/\.[^/.]+$/, '')
-                downloadBlob(blob, `${baseName}_transformed.png`)
+            const mime = getOutputMime(file.type)
+            if (mime === 'image/jpeg') {
+                ctx.fillStyle = '#ffffff'
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
             }
-        }, 'image/png')
+
+            ctx.translate(canvas.width / 2, canvas.height / 2)
+            ctx.rotate(radians)
+            ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
+            ctx.drawImage(img, -width / 2, -height / 2)
+
+            const blob = await canvasToBlob(canvas, mime, 0.92)
+            const extension = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png'
+            downloadBlob(blob, buildOutputName(file.name, 'rotated', extension))
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Could not transform the image')
+        } finally {
+            setIsProcessing(false)
+        }
     }
 
-    // Reset transformations
     const resetTransforms = () => {
         setRotation(0)
         setFlipH(false)
         setFlipV(false)
     }
 
-    // Reset all
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
         setFile(null)
-        setPreview(null)
         setOriginalInfo(null)
         setRotation(0)
         setFlipH(false)
         setFlipV(false)
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     const transformStyle = {
@@ -123,26 +112,12 @@ export default function ImageRotator({ onBack }: ImageRotatorProps) {
             </div>
 
             {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">🔄</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">Rotate, flip, and mirror your images</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
+                <Dropzone
+                    onFiles={(files) => handleFile(files[0])}
+                    icon="🔄"
+                    title="Drop your image here or click to browse"
+                    hint="Rotate, flip, and mirror your images"
+                />
             ) : (
                 <>
                     {/* Controls */}
@@ -202,12 +177,14 @@ export default function ImageRotator({ onBack }: ImageRotatorProps) {
                     {/* Preview */}
                     <div className="image-preview-container" style={{ marginTop: '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-                            <img
-                                src={preview!}
-                                alt="Preview"
-                                className="image-preview"
-                                style={transformStyle}
-                            />
+                            {preview && (
+                                <img
+                                    src={preview}
+                                    alt="Preview"
+                                    className="image-preview"
+                                    style={transformStyle}
+                                />
+                            )}
                         </div>
                         <div className="image-info">
                             <span className="info-badge">
@@ -230,8 +207,8 @@ export default function ImageRotator({ onBack }: ImageRotatorProps) {
                         <button className="secondary-button" onClick={handleReset}>
                             🔄 Upload New Image
                         </button>
-                        <button className="download-button" onClick={handleDownload}>
-                            ⬇️ Download Transformed Image
+                        <button className="download-button" onClick={handleDownload} disabled={isProcessing}>
+                            {isProcessing ? '⏳ Processing…' : '⬇️ Download Transformed Image'}
                         </button>
                     </div>
                 </>

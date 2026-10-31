@@ -1,5 +1,16 @@
-import { useCallback, useRef, useState } from 'react'
-import { downloadBlob, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { useCallback, useEffect, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import {
+    buildOutputName,
+    canvasToBlob,
+    downloadBlob,
+    getImageInfo,
+    getOutputMime,
+    loadImage,
+    type ImageInfo,
+} from '../utils/imageProcessing'
 
 interface WatermarkAdderProps {
     onBack: () => void
@@ -7,23 +18,32 @@ interface WatermarkAdderProps {
 
 export default function WatermarkAdder({ onBack }: WatermarkAdderProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
     const [watermarkText, setWatermarkText] = useState('© Your Name')
     const [watermarkPosition, setWatermarkPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'>('bottom-right')
     const [watermarkSize, setWatermarkSize] = useState(24)
     const [watermarkOpacity, setWatermarkOpacity] = useState(70)
     const [watermarkColor, setWatermarkColor] = useState('#ffffff')
-    const [processedUrl, setProcessedUrl] = useState<string | null>(null)
     const [processedBlob, setProcessedBlob] = useState<Blob | null>(null)
-    const [isDragging, setIsDragging] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const preview = useObjectUrl(file)
+    const processedUrl = useObjectUrl(processedBlob)
+    const { error } = useToast()
+
+    useEffect(() => {
+        if (!file) return
+        let active = true
+        getImageInfo(file)
+            .then((info) => { if (active) setOriginalInfo(info) })
+            .catch(() => { if (active) setOriginalInfo(null) })
+        return () => { active = false }
+    }, [file])
 
     const applyWatermark = useCallback(async () => {
         if (!file || !originalInfo) return
-        const img = new Image()
-        img.src = preview!
-        await new Promise(resolve => img.onload = resolve)
+        setIsProcessing(true)
+        try {
+        const img = await loadImage(file)
         const canvas = document.createElement('canvas')
         canvas.width = originalInfo.width
         canvas.height = originalInfo.height
@@ -45,38 +65,31 @@ export default function WatermarkAdder({ onBack }: WatermarkAdderProps) {
         ctx.shadowColor = 'rgba(0,0,0,0.5)'
         ctx.shadowBlur = 4
         ctx.fillText(watermarkText, x, y)
-        const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/png'))
-        if (processedUrl) URL.revokeObjectURL(processedUrl)
-        setProcessedBlob(blob)
-        setProcessedUrl(URL.createObjectURL(blob))
-    }, [file, originalInfo, preview, watermarkText, watermarkPosition, watermarkSize, watermarkOpacity, watermarkColor, processedUrl])
+        const mime = getOutputMime(file.type)
+        setProcessedBlob(await canvasToBlob(canvas, mime, 0.92))
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Could not apply the watermark')
+        } finally {
+            setIsProcessing(false)
+        }
+    }, [file, originalInfo, watermarkText, watermarkPosition, watermarkSize, watermarkOpacity, watermarkColor, error])
 
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) return
-        setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
-        if (processedUrl) URL.revokeObjectURL(processedUrl)
-        setProcessedUrl(null)
+    const handleFile = useCallback((selectedFile: File) => {
         setProcessedBlob(null)
-        const info = await getImageInfo(selectedFile)
-        setOriginalInfo(info)
-    }, [processedUrl])
-
-    const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true) }, [])
-    const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false) }, [])
-    const handleDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]) }, [handleFile])
+        setFile(selectedFile)
+    }, [])
 
     const handleDownload = () => {
         if (!processedBlob || !file) return
-        downloadBlob(processedBlob, `${file.name.replace(/\.[^/.]+$/, '')}_watermarked.png`)
+        const mime = getOutputMime(file.type)
+        const extension = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png'
+        downloadBlob(processedBlob, buildOutputName(file.name, 'watermarked', extension))
     }
 
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
-        if (processedUrl) URL.revokeObjectURL(processedUrl)
-        setFile(null); setPreview(null); setOriginalInfo(null); setProcessedUrl(null); setProcessedBlob(null)
-        if (fileInputRef.current) fileInputRef.current.value = ''
+        setFile(null)
+        setOriginalInfo(null)
+        setProcessedBlob(null)
     }
 
     return (
@@ -86,14 +99,12 @@ export default function WatermarkAdder({ onBack }: WatermarkAdderProps) {
                 <h1 className="tool-title">Watermark Adder</h1>
             </div>
             {!file ? (
-                <div className={`dropzone ${isDragging ? 'dragging' : ''}`} onClick={() => fileInputRef.current?.click()} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">©</div>
-                        <p className="dropzone-text">Drop image here or click to browse</p>
-                        <p className="dropzone-hint">Add text watermarks to protect your images</p>
-                    </div>
-                    <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} style={{ display: 'none' }} />
-                </div>
+                <Dropzone
+                    onFiles={(files) => handleFile(files[0])}
+                    icon="©"
+                    title="Drop image here or click to browse"
+                    hint="Add text watermarks to protect your images"
+                />
             ) : (
                 <>
                     <div className="controls-panel">
@@ -121,10 +132,12 @@ export default function WatermarkAdder({ onBack }: WatermarkAdderProps) {
                             <label className="control-label"><span>Color</span></label>
                             <input type="color" value={watermarkColor} onChange={(e) => setWatermarkColor(e.target.value)} className="color-picker" />
                         </div>
-                        <button className="download-button" onClick={applyWatermark} style={{ width: '100%', marginTop: '1rem' }}>✨ Apply Watermark</button>
+                        <button className="download-button" onClick={applyWatermark} disabled={isProcessing || !originalInfo} style={{ width: '100%', marginTop: '1rem' }}>
+                            {isProcessing ? '⏳ Applying…' : '✨ Apply Watermark'}
+                        </button>
                     </div>
                     <div className="comparison-container" style={{ marginTop: '1.5rem' }}>
-                        <div className="comparison-panel"><div className="comparison-label">Original</div><img src={preview!} alt="Original" className="comparison-image" /></div>
+                        <div className="comparison-panel"><div className="comparison-label">Original</div>{preview && <img src={preview} alt="Original" className="comparison-image" />}</div>
                         <div className="comparison-panel"><div className="comparison-label">Watermarked</div>{processedUrl ? <img src={processedUrl} alt="Watermarked" className="comparison-image" /> : <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)' }}>Click Apply</div>}</div>
                     </div>
                     <div className="actions-bar">

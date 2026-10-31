@@ -1,5 +1,16 @@
 import { useCallback, useRef, useState } from 'react'
-import { downloadBlob } from '../utils/imageProcessing'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import {
+    buildOutputName,
+    canvasToBlob,
+    downloadBlob,
+    getExtension,
+    getImageInfo,
+    getOutputMime,
+    loadImage,
+} from '../utils/imageProcessing'
 
 interface ImageCropperProps {
     onBack: () => void
@@ -20,167 +31,159 @@ const ASPECT_RATIOS = [
     { label: '4:3', value: 4 / 3 },
     { label: '3:4', value: 3 / 4 },
     { label: '3:2', value: 3 / 2 },
-    { label: '2:3', value: 2 / 3 }
+    { label: '2:3', value: 2 / 3 },
 ]
+
+const MIN_SIZE = 5
 
 export default function ImageCropper({ onBack }: ImageCropperProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
     const [cropArea, setCropArea] = useState<CropArea>({ x: 0, y: 0, width: 100, height: 100 })
     const [aspectRatio, setAspectRatio] = useState<number | null>(null)
-    const [isDragging, setIsDragging] = useState(false)
     const [dragType, setDragType] = useState<'move' | 'resize' | null>(null)
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+    const [isProcessing, setIsProcessing] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const imgRef = useRef<HTMLImageElement>(null)
+    const preview = useObjectUrl(file)
+    const { error } = useToast()
 
-    // Handle file selection
     const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
-
         setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
-
-        // Get image dimensions
-        const img = new Image()
-        img.onload = () => {
-            setImageDimensions({ width: img.width, height: img.height })
-            // Set initial crop to full image
-            setCropArea({ x: 0, y: 0, width: 100, height: 100 })
+        setAspectRatio(null)
+        setCropArea({ x: 0, y: 0, width: 100, height: 100 })
+        try {
+            const info = await getImageInfo(selectedFile)
+            setImageDimensions({ width: info.width, height: info.height })
+        } catch (err) {
+            setImageDimensions(null)
+            error(err instanceof Error ? err.message : 'Could not read the image')
         }
-        img.src = url
-    }, [])
+    }, [error])
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
+    const handlePointerDown = (e: React.PointerEvent, type: 'move' | 'resize') => {
         e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Handle crop area mouse events
-    const handleMouseDown = (e: React.MouseEvent, type: 'move' | 'resize') => {
-        e.preventDefault()
+        e.stopPropagation()
+        e.currentTarget.setPointerCapture(e.pointerId)
         setDragType(type)
         setDragStart({ x: e.clientX, y: e.clientY })
     }
 
-    const handleMouseMove = useCallback((e: React.MouseEvent) => {
-        if (!dragType || !containerRef.current) return
+    const handlePointerMove = (e: React.PointerEvent) => {
+        if (!dragType) return
+        const rect = imgRef.current?.getBoundingClientRect()
+        if (!rect) return
 
-        const rect = containerRef.current.getBoundingClientRect()
         const deltaX = ((e.clientX - dragStart.x) / rect.width) * 100
         const deltaY = ((e.clientY - dragStart.y) / rect.height) * 100
+        const imgAspect = imageDimensions ? imageDimensions.width / imageDimensions.height : 1
 
-        setCropArea(prev => {
+        setCropArea((prev) => {
             if (dragType === 'move') {
-                const newX = Math.max(0, Math.min(100 - prev.width, prev.x + deltaX))
-                const newY = Math.max(0, Math.min(100 - prev.height, prev.y + deltaY))
-                return { ...prev, x: newX, y: newY }
-            } else {
-                let newWidth = Math.max(10, Math.min(100 - prev.x, prev.width + deltaX))
-                let newHeight = Math.max(10, Math.min(100 - prev.y, prev.height + deltaY))
-
-                if (aspectRatio && imageDimensions) {
-                    const imgAspect = imageDimensions.width / imageDimensions.height
-                    const targetAspect = aspectRatio * imgAspect
-                    newHeight = newWidth / targetAspect
-                    if (prev.y + newHeight > 100) {
-                        newHeight = 100 - prev.y
-                        newWidth = newHeight * targetAspect
-                    }
+                return {
+                    ...prev,
+                    x: Math.max(0, Math.min(100 - prev.width, prev.x + deltaX)),
+                    y: Math.max(0, Math.min(100 - prev.height, prev.y + deltaY)),
                 }
-
-                return { ...prev, width: newWidth, height: newHeight }
             }
+
+            let newWidth = Math.max(MIN_SIZE, Math.min(100 - prev.x, prev.width + deltaX))
+            let newHeight = Math.max(MIN_SIZE, Math.min(100 - prev.y, prev.height + deltaY))
+
+            if (aspectRatio) {
+                newWidth = Math.min(newWidth, ((100 - prev.y) * aspectRatio) / imgAspect)
+                newHeight = (newWidth * imgAspect) / aspectRatio
+            }
+
+            if (prev.x + newWidth > 100) {
+                newWidth = 100 - prev.x
+                if (aspectRatio) newHeight = (newWidth * imgAspect) / aspectRatio
+            }
+            if (prev.y + newHeight > 100) {
+                newHeight = 100 - prev.y
+                if (aspectRatio) newWidth = (newHeight * aspectRatio) / imgAspect
+            }
+
+            return { ...prev, width: newWidth, height: newHeight }
         })
 
         setDragStart({ x: e.clientX, y: e.clientY })
-    }, [dragType, dragStart, aspectRatio, imageDimensions])
-
-    const handleMouseUp = () => {
-        setDragType(null)
     }
 
-    // Apply aspect ratio
+    const handlePointerUp = () => setDragType(null)
+
     const applyAspectRatio = (ratio: number | null) => {
         setAspectRatio(ratio)
-        if (ratio && imageDimensions) {
-            const imgAspect = imageDimensions.width / imageDimensions.height
-            const targetAspect = ratio * imgAspect
+        if (!ratio || !imageDimensions) return
 
-            let newWidth = cropArea.width
-            let newHeight = newWidth / targetAspect
+        const imgAspect = imageDimensions.width / imageDimensions.height
+        setCropArea((prev) => {
+            let width = prev.width
+            let height = (width * imgAspect) / ratio
 
-            if (cropArea.y + newHeight > 100) {
-                newHeight = 100 - cropArea.y
-                newWidth = newHeight * targetAspect
+            if (prev.y + height > 100) {
+                height = 100 - prev.y
+                width = (height * ratio) / imgAspect
+            }
+            if (prev.x + width > 100) {
+                width = 100 - prev.x
+                height = (width * imgAspect) / ratio
             }
 
-            setCropArea(prev => ({ ...prev, width: newWidth, height: newHeight }))
+            return {
+                x: Math.min(prev.x, Math.max(0, 100 - width)),
+                y: Math.min(prev.y, Math.max(0, 100 - height)),
+                width,
+                height,
+            }
+        })
+    }
+
+    const handleCrop = async () => {
+        if (!file || !imageDimensions) return
+        setIsProcessing(true)
+
+        try {
+            const img = await loadImage(file)
+            const sourceX = Math.round((cropArea.x / 100) * imageDimensions.width)
+            const sourceY = Math.round((cropArea.y / 100) * imageDimensions.height)
+            const sourceWidth = Math.max(1, Math.round((cropArea.width / 100) * imageDimensions.width))
+            const sourceHeight = Math.max(1, Math.round((cropArea.height / 100) * imageDimensions.height))
+
+            const canvas = document.createElement('canvas')
+            canvas.width = sourceWidth
+            canvas.height = sourceHeight
+
+            const ctx = canvas.getContext('2d')
+            if (!ctx) throw new Error('Canvas is not available')
+
+            const format = getOutputMime(file.type)
+            if (format === 'image/jpeg') {
+                ctx.fillStyle = '#ffffff'
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
+            }
+
+            ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight)
+            const blob = await canvasToBlob(canvas, format, 0.92)
+            downloadBlob(blob, buildOutputName(file.name, 'cropped', getExtension(format)))
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Could not crop the image')
+        } finally {
+            setIsProcessing(false)
         }
     }
 
-    // Crop and download
-    const handleCrop = async () => {
-        if (!file || !imageDimensions) return
-
-        const img = new Image()
-        img.src = preview!
-
-        await new Promise(resolve => img.onload = resolve)
-
-        const canvas = document.createElement('canvas')
-        const sourceX = (cropArea.x / 100) * imageDimensions.width
-        const sourceY = (cropArea.y / 100) * imageDimensions.height
-        const sourceWidth = (cropArea.width / 100) * imageDimensions.width
-        const sourceHeight = (cropArea.height / 100) * imageDimensions.height
-
-        canvas.width = sourceWidth
-        canvas.height = sourceHeight
-
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-
-        ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight)
-
-        canvas.toBlob((blob) => {
-            if (blob) {
-                const baseName = file.name.replace(/\.[^/.]+$/, '')
-                downloadBlob(blob, `${baseName}_cropped.png`)
-            }
-        }, 'image/png')
-    }
-
-    // Reset
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
         setFile(null)
-        setPreview(null)
         setImageDimensions(null)
         setCropArea({ x: 0, y: 0, width: 100, height: 100 })
-        if (fileInputRef.current) fileInputRef.current.value = ''
+        setAspectRatio(null)
     }
 
     const cropDimensions = imageDimensions ? {
-        width: Math.round((cropArea.width / 100) * imageDimensions.width),
-        height: Math.round((cropArea.height / 100) * imageDimensions.height)
+        width: Math.max(1, Math.round((cropArea.width / 100) * imageDimensions.width)),
+        height: Math.max(1, Math.round((cropArea.height / 100) * imageDimensions.height)),
     } : null
 
     return (
@@ -191,29 +194,14 @@ export default function ImageCropper({ onBack }: ImageCropperProps) {
             </div>
 
             {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">✂️</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">Crop images with customizable aspect ratios</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
+                <Dropzone
+                    onFiles={(files) => void handleFile(files[0])}
+                    icon="✂️"
+                    title="Drop your image here or click to browse"
+                    hint="Crop images with customizable aspect ratios"
+                />
             ) : (
                 <>
-                    {/* Aspect Ratio Selection */}
                     <div className="controls-panel">
                         <div className="control-group">
                             <label className="control-label"><span>Aspect Ratio</span></label>
@@ -239,7 +227,6 @@ export default function ImageCropper({ onBack }: ImageCropperProps) {
                         )}
                     </div>
 
-                    {/* Crop Area */}
                     <div
                         ref={containerRef}
                         className="image-preview-container"
@@ -247,16 +234,26 @@ export default function ImageCropper({ onBack }: ImageCropperProps) {
                             marginTop: '1.5rem',
                             position: 'relative',
                             cursor: dragType ? 'grabbing' : 'default',
-                            userSelect: 'none'
+                            userSelect: 'none',
+                            touchAction: 'none',
                         }}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseUp}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerUp}
+                        onPointerLeave={handlePointerUp}
                     >
                         <div style={{ position: 'relative', display: 'inline-block' }}>
-                            <img src={preview!} alt="Preview" className="image-preview" style={{ opacity: 0.5 }} />
+                            {preview && (
+                                <img
+                                    ref={imgRef}
+                                    src={preview}
+                                    alt="Preview"
+                                    className="image-preview"
+                                    style={{ opacity: 0.5, display: 'block' }}
+                                    draggable={false}
+                                />
+                            )}
 
-                            {/* Crop overlay */}
                             <div
                                 style={{
                                     position: 'absolute',
@@ -267,49 +264,66 @@ export default function ImageCropper({ onBack }: ImageCropperProps) {
                                     border: '2px solid #667eea',
                                     boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
                                     cursor: 'move',
-                                    overflow: 'hidden'
+                                    overflow: 'hidden',
+                                    touchAction: 'none',
                                 }}
-                                onMouseDown={(e) => handleMouseDown(e, 'move')}
+                                onPointerDown={(e) => handlePointerDown(e, 'move')}
                             >
-                                <img
-                                    src={preview!}
-                                    alt="Crop"
-                                    style={{
-                                        position: 'absolute',
-                                        left: `-${(cropArea.x / cropArea.width) * 100}%`,
-                                        top: `-${(cropArea.y / cropArea.height) * 100}%`,
-                                        width: `${100 / cropArea.width * 100}%`,
-                                        height: `${100 / cropArea.height * 100}%`,
-                                        maxWidth: 'none',
-                                        pointerEvents: 'none'
-                                    }}
-                                />
+                                {preview && (
+                                    <img
+                                        src={preview}
+                                        alt=""
+                                        style={{
+                                            position: 'absolute',
+                                            left: `-${(cropArea.x / cropArea.width) * 100}%`,
+                                            top: `-${(cropArea.y / cropArea.height) * 100}%`,
+                                            width: `${100 / cropArea.width * 100}%`,
+                                            height: `${100 / cropArea.height * 100}%`,
+                                            maxWidth: 'none',
+                                            pointerEvents: 'none',
+                                        }}
+                                        draggable={false}
+                                    />
+                                )}
 
-                                {/* Resize handle */}
                                 <div
+                                    role="slider"
+                                    aria-label="Resize crop area"
+                                    tabIndex={0}
                                     style={{
                                         position: 'absolute',
                                         right: -8,
                                         bottom: -8,
-                                        width: 16,
-                                        height: 16,
+                                        width: 24,
+                                        height: 24,
                                         background: '#667eea',
                                         borderRadius: 4,
-                                        cursor: 'nwse-resize'
+                                        cursor: 'nwse-resize',
+                                        touchAction: 'none',
                                     }}
-                                    onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, 'resize') }}
+                                    onPointerDown={(e) => handlePointerDown(e, 'resize')}
+                                    onKeyDown={(e) => {
+                                        if (!imageDimensions) return
+                                        const step = e.shiftKey ? 5 : 1
+                                        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                                            e.preventDefault()
+                                            setCropArea((prev) => ({ ...prev, width: Math.min(100 - prev.x, prev.width + step), height: Math.min(100 - prev.y, prev.height + step) }))
+                                        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                                            e.preventDefault()
+                                            setCropArea((prev) => ({ ...prev, width: Math.max(MIN_SIZE, prev.width - step), height: Math.max(MIN_SIZE, prev.height - step) }))
+                                        }
+                                    }}
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="actions-bar">
                         <button className="secondary-button" onClick={handleReset}>
                             🔄 Upload New Image
                         </button>
-                        <button className="download-button" onClick={handleCrop}>
-                            ✂️ Crop & Download
+                        <button className="download-button" onClick={() => void handleCrop()} disabled={isProcessing}>
+                            ✂️ {isProcessing ? 'Cropping…' : 'Crop & Download'}
                         </button>
                     </div>
                 </>

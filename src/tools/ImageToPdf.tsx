@@ -1,6 +1,13 @@
-import { jsPDF } from 'jspdf'
-import { useCallback, useRef, useState } from 'react'
-import { formatFileSize, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import {
+    buildOutputName,
+    formatFileSize,
+    getImageInfo,
+    loadImage,
+    type ImageInfo,
+} from '../utils/imageProcessing'
 
 interface ImageToPdfProps {
     onBack: () => void
@@ -15,50 +22,55 @@ interface ImageFile {
 export default function ImageToPdf({ onBack }: ImageToPdfProps) {
     const [images, setImages] = useState<ImageFile[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
+    const [progress, setProgress] = useState(0)
     const [pageSize, setPageSize] = useState<'a4' | 'letter' | 'fit'>('a4')
     const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
     const [margin, setMargin] = useState(10)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const imagesRef = useRef<ImageFile[]>([])
+    const cancelRef = useRef(false)
+    const { error } = useToast()
 
-    // Handle file selection
-    const handleFiles = useCallback(async (selectedFiles: FileList) => {
-        const imageFiles = Array.from(selectedFiles).filter(f => f.type.startsWith('image/'))
-
-        if (imageFiles.length === 0) {
-            alert('Please select image files')
-            return
-        }
-
-        const newImages: ImageFile[] = []
-
-        for (const file of imageFiles) {
-            const url = URL.createObjectURL(file)
-            const info = await getImageInfo(file)
-            newImages.push({ file, url, info })
-        }
-
-        setImages([...images, ...newImages])
+    useEffect(() => {
+        imagesRef.current = images
     }, [images])
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
+    useEffect(() => () => {
+        imagesRef.current.forEach((image) => URL.revokeObjectURL(image.url))
     }, [])
 
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
+    const handleFiles = useCallback(async (selectedFiles: File[]) => {
+        if (selectedFiles.length === 0) return
+        const newImages: ImageFile[] = []
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        if (e.dataTransfer.files.length > 0) {
-            handleFiles(e.dataTransfer.files)
+        try {
+            for (const file of selectedFiles) {
+                const url = URL.createObjectURL(file)
+                const info = await getImageInfo(file)
+                newImages.push({ file, url, info })
+            }
+            setImages((current) => [...current, ...newImages])
+        } catch (err) {
+            newImages.forEach((image) => URL.revokeObjectURL(image.url))
+            error(err instanceof Error ? err.message : 'Could not add one of the images')
         }
-    }, [handleFiles])
+    }, [error])
+
+    const toPdfDataUrl = async (image: ImageFile): Promise<string> => {
+        const img = await loadImage(image.file)
+        const canvas = document.createElement('canvas')
+        canvas.width = image.info.width
+        canvas.height = image.info.height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('Canvas is not available')
+
+        const isJpeg = image.file.type === 'image/jpeg'
+        if (isJpeg) {
+            ctx.fillStyle = '#ffffff'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        return canvas.toDataURL(isJpeg ? 'image/jpeg' : 'image/png', 0.92)
+    }
 
     // Remove image
     const removeImage = (index: number) => {
@@ -77,37 +89,40 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
         setImages(newImages)
     }
 
-    // Generate PDF
     const generatePdf = async () => {
-        if (images.length === 0) return
+        if (images.length === 0 || isProcessing) return
 
         setIsProcessing(true)
+        setProgress(0)
+        cancelRef.current = false
 
         try {
-            let pdf: jsPDF
+            const { jsPDF } = await import('jspdf')
+            let pdf: InstanceType<typeof jsPDF>
 
             if (pageSize === 'fit') {
-                // Create PDF with first image size
                 const firstImg = images[0]
                 pdf = new jsPDF({
                     orientation: firstImg.info.width > firstImg.info.height ? 'landscape' : 'portrait',
                     unit: 'px',
-                    format: [firstImg.info.width, firstImg.info.height]
+                    format: [firstImg.info.width, firstImg.info.height],
                 })
             } else {
-                pdf = new jsPDF({
-                    orientation,
-                    unit: 'mm',
-                    format: pageSize
-                })
+                pdf = new jsPDF({ orientation, unit: 'mm', format: pageSize })
             }
 
             for (let i = 0; i < images.length; i++) {
+                if (cancelRef.current) return
                 const img = images[i]
+                const dataUrl = await toPdfDataUrl(img)
+                const format = img.file.type === 'image/jpeg' ? 'JPEG' : 'PNG'
 
                 if (i > 0) {
                     if (pageSize === 'fit') {
-                        pdf.addPage([img.info.width, img.info.height], img.info.width > img.info.height ? 'landscape' : 'portrait')
+                        pdf.addPage(
+                            [img.info.width, img.info.height],
+                            img.info.width > img.info.height ? 'landscape' : 'portrait'
+                        )
                     } else {
                         pdf.addPage()
                     }
@@ -117,12 +132,10 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
                 const pageHeight = pdf.internal.pageSize.getHeight()
 
                 if (pageSize === 'fit') {
-                    pdf.addImage(img.url, 'JPEG', 0, 0, img.info.width, img.info.height)
+                    pdf.addImage(dataUrl, format, 0, 0, img.info.width, img.info.height)
                 } else {
-                    // Calculate dimensions to fit within margins
-                    const availableWidth = pageWidth - (margin * 2)
-                    const availableHeight = pageHeight - (margin * 2)
-
+                    const availableWidth = pageWidth - margin * 2
+                    const availableHeight = pageHeight - margin * 2
                     const imgRatio = img.info.width / img.info.height
                     const pageRatio = availableWidth / availableHeight
 
@@ -139,25 +152,26 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
 
                     const x = margin + (availableWidth - imgWidth) / 2
                     const y = margin + (availableHeight - imgHeight) / 2
-
-                    pdf.addImage(img.url, 'JPEG', x, y, imgWidth, imgHeight)
+                    pdf.addImage(dataUrl, format, x, y, imgWidth, imgHeight)
                 }
+
+                setProgress(Math.round(((i + 1) / images.length) * 100))
             }
 
-            pdf.save('images.pdf')
-        } catch (error) {
-            console.error('Error generating PDF:', error)
-            alert('Error generating PDF')
+            if (cancelRef.current) return
+            const baseName = images[0].file.name.replace(/\.[^/.]+$/, '')
+            pdf.save(buildOutputName(baseName, images.length > 1 ? `${images.length}-images` : 'document', 'pdf'))
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Could not generate the PDF')
         } finally {
             setIsProcessing(false)
+            setProgress(0)
         }
     }
 
-    // Reset
     const handleReset = () => {
-        images.forEach(img => URL.revokeObjectURL(img.url))
+        images.forEach((img) => URL.revokeObjectURL(img.url))
         setImages([])
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     return (
@@ -167,28 +181,13 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
                 <h1 className="tool-title">Image to PDF</h1>
             </div>
 
-            {/* Upload Area */}
-            <div
-                className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-            >
-                <div className="dropzone-content">
-                    <div className="dropzone-icon">📄</div>
-                    <p className="dropzone-text">Drop images here or click to browse</p>
-                    <p className="dropzone-hint">Convert multiple images into a single PDF document</p>
-                </div>
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => e.target.files && handleFiles(e.target.files)}
-                    style={{ display: 'none' }}
-                />
-            </div>
+            <Dropzone
+                onFiles={handleFiles}
+                multiple
+                icon="📄"
+                title={images.length > 0 ? 'Add more images' : 'Drop images here or click to browse'}
+                hint="Convert multiple images into a single PDF document"
+            />
 
             {/* Image List */}
             {images.length > 0 && (
@@ -316,12 +315,6 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
                             🔄 Clear All
                         </button>
                         <button
-                            className="secondary-button"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            ➕ Add More
-                        </button>
-                        <button
                             className="download-button"
                             onClick={generatePdf}
                             disabled={isProcessing}
@@ -332,12 +325,23 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
                 </>
             )}
 
-            {/* Processing Overlay */}
             {isProcessing && (
-                <div className="processing-overlay">
+                <div className="processing-overlay" role="status" aria-live="polite">
                     <div className="processing-content">
                         <div className="processing-spinner" />
-                        <div className="processing-text">Generating PDF...</div>
+                        <div className="processing-text">
+                            Generating PDF… {progress > 0 ? `${progress}%` : ''}
+                        </div>
+                        <div className="progress-track" style={{ width: 220, marginTop: '0.75rem' }}>
+                            <div className="progress-fill" style={{ width: `${progress}%` }} />
+                        </div>
+                        <button
+                            className="secondary-button"
+                            style={{ marginTop: '1rem' }}
+                            onClick={() => { cancelRef.current = true }}
+                        >
+                            Cancel
+                        </button>
                     </div>
                 </div>
             )}

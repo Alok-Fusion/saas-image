@@ -1,5 +1,8 @@
-import { useCallback, useRef, useState } from 'react'
-import Tesseract from 'tesseract.js'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import { downloadBlob } from '../utils/imageProcessing'
 
 interface OcrExtractorProps {
     onBack: () => void
@@ -7,14 +10,21 @@ interface OcrExtractorProps {
 
 export default function OcrExtractor({ onBack }: OcrExtractorProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [extractedText, setExtractedText] = useState<string>('')
     const [isProcessing, setIsProcessing] = useState(false)
     const [progress, setProgress] = useState(0)
-    const [isDragging, setIsDragging] = useState(false)
     const [language, setLanguage] = useState('eng')
     const [copied, setCopied] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const preview = useObjectUrl(file)
+    const workerRef = useRef<{ terminate: () => Promise<unknown> } | null>(null)
+    const runIdRef = useRef(0)
+    const copyTimerRef = useRef<number | undefined>(undefined)
+    const { success, error } = useToast()
+
+    useEffect(() => () => {
+        window.clearTimeout(copyTimerRef.current)
+        void workerRef.current?.terminate().catch(() => undefined)
+    }, [])
 
     const languages = [
         { code: 'eng', name: 'English' },
@@ -31,93 +41,80 @@ export default function OcrExtractor({ onBack }: OcrExtractorProps) {
         { code: 'hin', name: 'Hindi' }
     ]
 
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
-
+    const handleFile = useCallback((selectedFile: File) => {
         setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
         setExtractedText('')
         setProgress(0)
     }, [])
 
-    // Extract text using Tesseract.js
     const extractText = async () => {
-        if (!file) return
+        if (!file || isProcessing) return
 
+        const runId = ++runIdRef.current
         setIsProcessing(true)
         setProgress(0)
         setExtractedText('')
 
         try {
-            const result = await Tesseract.recognize(file, language, {
-                logger: (m) => {
-                    if (m.status === 'recognizing text') {
-                        setProgress(Math.round(m.progress * 100))
+            const { default: Tesseract } = await import('tesseract.js')
+            if (runIdRef.current !== runId) return
+            const worker = await Tesseract.createWorker(language, 1, {
+                logger: (message: { status: string; progress: number }) => {
+                    if (runIdRef.current === runId && message.status === 'recognizing text') {
+                        setProgress(Math.round(message.progress * 100))
                     }
-                }
+                },
             })
-
-            setExtractedText(result.data.text.trim())
-        } catch (error) {
-            console.error('Error extracting text:', error)
-            alert('Error extracting text from image')
-        } finally {
-            setIsProcessing(false)
+            workerRef.current = worker
+            if (runIdRef.current !== runId) {
+                await worker.terminate()
+                return
+            }
+            const { data } = await worker.recognize(file)
+            if (runIdRef.current !== runId) return
+            setExtractedText(data.text.trim())
             setProgress(100)
+        } catch (err) {
+            if (runIdRef.current === runId) {
+                error(err instanceof Error ? err.message : 'Could not extract text from the image')
+            }
+        } finally {
+            void workerRef.current?.terminate().catch(() => undefined)
+            workerRef.current = null
+            if (runIdRef.current === runId) setIsProcessing(false)
         }
     }
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Copy text to clipboard
-    const copyText = () => {
-        navigator.clipboard.writeText(extractedText)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+    const cancelExtraction = () => {
+        runIdRef.current += 1
+        void workerRef.current?.terminate().catch(() => undefined)
+        workerRef.current = null
+        setIsProcessing(false)
+        setProgress(0)
+        success('OCR cancelled')
     }
 
-    // Download as text file
+    const copyText = async () => {
+        try {
+            await navigator.clipboard.writeText(extractedText)
+            setCopied(true)
+            success('Text copied')
+            window.clearTimeout(copyTimerRef.current)
+            copyTimerRef.current = window.setTimeout(() => setCopied(false), 2000)
+        } catch {
+            error('Clipboard access was blocked by your browser')
+        }
+    }
+
     const downloadText = () => {
-        const blob = new Blob([extractedText], { type: 'text/plain' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = 'extracted_text.txt'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+        downloadBlob(new Blob([extractedText], { type: 'text/plain' }), 'extracted-text.txt')
     }
 
-    // Reset
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
+        runIdRef.current += 1
         setFile(null)
-        setPreview(null)
         setExtractedText('')
         setProgress(0)
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     // Word and character count
@@ -132,32 +129,18 @@ export default function OcrExtractor({ onBack }: OcrExtractorProps) {
             </div>
 
             {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">📝</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">Extract text from screenshots, documents, photos, or handwriting</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
+                <Dropzone
+                    onFiles={(files) => handleFile(files[0])}
+                    icon="📝"
+                    title="Drop your image here or click to browse"
+                    hint="Extract text from screenshots, documents, photos, or handwriting"
+                />
             ) : (
                 <>
                     {/* Image Preview and Controls */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                         <div className="image-preview-container" style={{ margin: 0 }}>
-                            <img src={preview!} alt="Preview" className="image-preview" />
+                            {preview && <img src={preview} alt="Preview" className="image-preview" />}
                         </div>
 
                         <div className="controls-panel" style={{ margin: 0 }}>
@@ -220,6 +203,9 @@ export default function OcrExtractor({ onBack }: OcrExtractorProps) {
                                         }} />
                                     </div>
                                     <div style={{ marginTop: '0.5rem', color: 'rgba(255,255,255,0.5)' }}>{progress}%</div>
+                                    <button className="secondary-button" style={{ marginTop: '0.75rem' }} onClick={cancelExtraction}>
+                                        Cancel
+                                    </button>
                                 </div>
                             )}
 
@@ -322,6 +308,9 @@ export default function OcrExtractor({ onBack }: OcrExtractorProps) {
                             {progress < 30 ? 'Loading OCR engine...' : 'Recognizing text...'}
                         </div>
                     </div>
+                    <button className="secondary-button" style={{ marginTop: '1rem' }} onClick={cancelExtraction}>
+                        Cancel
+                    </button>
                 </div>
             )}
         </div>

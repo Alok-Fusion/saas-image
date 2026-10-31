@@ -1,176 +1,80 @@
-import { useCallback, useRef, useState } from 'react'
-import { formatFileSize, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { getConcurrencyLimit, mapWithConcurrency } from '../utils/concurrency'
+import {
+    findDuplicates,
+    type DuplicateGroup,
+    type ImageWithHash,
+} from '../utils/duplicateHashing'
+import { formatFileSize, getImageInfo } from '../utils/imageProcessing'
+import { runImageTask, type WorkerTask } from '../utils/imageWorker'
 
 interface DuplicateFinderProps {
     onBack: () => void
-}
-
-interface ImageWithHash {
-    file: File
-    url: string
-    info: ImageInfo
-    hash: string
-}
-
-interface DuplicateGroup {
-    hash: string
-    images: ImageWithHash[]
-}
-
-function generateImageHash(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const img = new Image()
-        const url = URL.createObjectURL(file)
-
-        img.onload = () => {
-            URL.revokeObjectURL(url)
-
-            const canvas = document.createElement('canvas')
-            const size = 8
-            canvas.width = size
-            canvas.height = size
-
-            const ctx = canvas.getContext('2d')
-            if (!ctx) {
-                reject(new Error('Failed to get canvas context'))
-                return
-            }
-
-            ctx.drawImage(img, 0, 0, size, size)
-            const imageData = ctx.getImageData(0, 0, size, size)
-            const pixels = imageData.data
-
-            let total = 0
-            const grayscale: number[] = []
-
-            for (let i = 0; i < pixels.length; i += 4) {
-                const gray = pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114
-                grayscale.push(gray)
-                total += gray
-            }
-
-            const average = total / grayscale.length
-            let hash = ''
-            for (const gray of grayscale) {
-                hash += gray >= average ? '1' : '0'
-            }
-
-            resolve(hash)
-        }
-
-        img.onerror = () => {
-            URL.revokeObjectURL(url)
-            reject(new Error('Failed to load image'))
-        }
-
-        img.src = url
-    })
-}
-
-function calculateSimilarity(hash1: string, hash2: string): number {
-    let differences = 0
-    for (let i = 0; i < hash1.length; i++) {
-        if (hash1[i] !== hash2[i]) differences++
-    }
-    return ((hash1.length - differences) / hash1.length) * 100
-}
-
-function findDuplicates(imageList: ImageWithHash[]): DuplicateGroup[] {
-    const groups: DuplicateGroup[] = []
-    const processed = new Set<number>()
-
-    for (let i = 0; i < imageList.length; i++) {
-        if (processed.has(i)) continue
-
-        const group: ImageWithHash[] = [imageList[i]]
-        processed.add(i)
-
-        for (let j = i + 1; j < imageList.length; j++) {
-            if (processed.has(j)) continue
-
-            const similarity = calculateSimilarity(imageList[i].hash, imageList[j].hash)
-
-            if (similarity >= 90) {
-                group.push(imageList[j])
-                processed.add(j)
-            }
-        }
-
-        if (group.length > 1) {
-            groups.push({ hash: imageList[i].hash, images: group })
-        }
-    }
-
-    return groups
 }
 
 export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
     const [images, setImages] = useState<ImageWithHash[]>([])
     const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
     const [progress, setProgress] = useState(0)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const activeTasksRef = useRef<Set<WorkerTask<string>>>(new Set())
+    const imagesRef = useRef<ImageWithHash[]>([])
+    const { error } = useToast()
 
-    // Handle file selection
-    const handleFiles = useCallback(async (selectedFiles: FileList) => {
-        const imageFiles = Array.from(selectedFiles).filter(f => f.type.startsWith('image/'))
+    useEffect(() => {
+        imagesRef.current = images
+    }, [images])
 
-        if (imageFiles.length === 0) {
-            alert('Please select image files')
-            return
-        }
+    useEffect(() => () => {
+        activeTasksRef.current.forEach((task) => task.cancel())
+        imagesRef.current.forEach((img) => URL.revokeObjectURL(img.url))
+    }, [])
+
+    const handleFiles = useCallback(async (selectedFiles: File[]) => {
+        if (selectedFiles.length === 0) return
 
         setIsProcessing(true)
         setProgress(0)
-
-        const newImages: ImageWithHash[] = []
+        activeTasksRef.current = new Set()
 
         try {
-            for (let i = 0; i < imageFiles.length; i++) {
-                const file = imageFiles[i]
-                const url = URL.createObjectURL(file)
-                const info = await getImageInfo(file)
-                const hash = await generateImageHash(file)
+            const results = await mapWithConcurrency(
+                selectedFiles,
+                getConcurrencyLimit(selectedFiles.length),
+                async (file) => {
+                    const info = await getImageInfo(file)
+                    const task = runImageTask<string>({ kind: 'hash', file })
+                    activeTasksRef.current.add(task)
+                    try {
+                        const hash = await task.promise
+                        return { file, url: URL.createObjectURL(file), info, hash }
+                    } finally {
+                        activeTasksRef.current.delete(task)
+                    }
+                },
+                (done, total) => setProgress(Math.round((done / total) * 100))
+            )
 
-                newImages.push({ file, url, info, hash })
-                setProgress(Math.round(((i + 1) / imageFiles.length) * 100))
-            }
-
-            const allImages = [...images, ...newImages]
+            const allImages = [...images, ...results]
             setImages(allImages)
-
-            // Find duplicates
-            const groups = findDuplicates(allImages)
-            setDuplicateGroups(groups)
-        } catch (error) {
-            console.error('Error processing images:', error)
-            alert('Error processing some images')
+            setDuplicateGroups(findDuplicates(allImages))
+        } catch (err) {
+            if (!(err instanceof Error && err.name === 'AbortError')) {
+                error(err instanceof Error ? err.message : 'Error processing some images')
+            }
         } finally {
             setIsProcessing(false)
+            activeTasksRef.current = new Set()
         }
-    }, [images])
+    }, [error, images])
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
+    const cancel = () => {
+        activeTasksRef.current.forEach((task) => task.cancel())
+        setIsProcessing(false)
+    }
 
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        if (e.dataTransfer.files.length > 0) {
-            handleFiles(e.dataTransfer.files)
-        }
-    }, [handleFiles])
-
-    // Remove image
     const removeImage = (index: number) => {
         const newImages = [...images]
         URL.revokeObjectURL(newImages[index].url)
@@ -179,13 +83,12 @@ export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
         setDuplicateGroups(findDuplicates(newImages))
     }
 
-    // Reset
     const handleReset = () => {
+        cancel()
         images.forEach(img => URL.revokeObjectURL(img.url))
         setImages([])
         setDuplicateGroups([])
         setProgress(0)
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     const uniqueCount = images.length - duplicateGroups.reduce((acc, g) => acc + g.images.length - 1, 0)
@@ -198,28 +101,14 @@ export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
                 <h1 className="tool-title">Duplicate Image Finder</h1>
             </div>
 
-            {/* Upload Area */}
-            <div
-                className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-            >
-                <div className="dropzone-content">
-                    <div className="dropzone-icon">🔍</div>
-                    <p className="dropzone-text">Drop multiple images here or click to browse</p>
-                    <p className="dropzone-hint">Uses perceptual hashing to find visually similar images</p>
-                </div>
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => e.target.files && handleFiles(e.target.files)}
-                    style={{ display: 'none' }}
-                />
-            </div>
+            <Dropzone
+                onFiles={(files) => void handleFiles(files)}
+                multiple
+                icon="🔍"
+                title={images.length > 0 ? 'Add more images or drop them here' : 'Drop multiple images here or click to browse'}
+                hint="Uses perceptual hashing to find visually similar images"
+                disabled={isProcessing}
+            />
 
             {/* Stats */}
             {images.length > 0 && (
@@ -387,12 +276,6 @@ export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
                     <button className="secondary-button" onClick={handleReset}>
                         🔄 Clear All
                     </button>
-                    <button
-                        className="download-button"
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        ➕ Add More Images
-                    </button>
                 </div>
             )}
 
@@ -419,6 +302,9 @@ export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
                             }} />
                         </div>
                         <div style={{ marginTop: '0.5rem', color: 'rgba(255,255,255,0.5)' }}>{progress}%</div>
+                        <button className="secondary-button" style={{ marginTop: '1rem' }} onClick={cancel}>
+                            Cancel
+                        </button>
                     </div>
                 </div>
             )}

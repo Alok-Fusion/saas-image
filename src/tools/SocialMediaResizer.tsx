@@ -1,4 +1,3 @@
-import JSZip from 'jszip'
 import { useCallback, useRef, useState } from 'react'
 import { downloadBlob, formatFileSize, getExtension, getImageInfo, resizeImage, type ImageInfo } from '../utils/imageProcessing'
 import { getPopularPresets, platforms } from '../utils/socialPresets'
@@ -124,6 +123,7 @@ export default function SocialMediaResizer({ onBack }: SocialMediaResizerProps) 
     const handleDownloadAll = async () => {
         if (resizedImages.length === 0) return
 
+        const { default: JSZip } = await import('jszip')
         const zip = new JSZip()
         const baseName = file?.name.replace(/\.[^/.]+$/, '') || 'image'
 

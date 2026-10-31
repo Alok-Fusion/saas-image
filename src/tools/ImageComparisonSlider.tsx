@@ -1,97 +1,72 @@
-import { useCallback, useRef, useState } from 'react';
-import { getImageInfo, type ImageInfo } from '../utils/imageProcessing';
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import { getImageInfo, type ImageInfo } from '../utils/imageProcessing'
 
 interface ImageComparisonSliderProps {
     onBack: () => void
 }
 
+interface ComparisonImage {
+    file: File
+    info: ImageInfo
+}
+
 export default function ImageComparisonSlider({ onBack }: ImageComparisonSliderProps) {
-    const [image1, setImage1] = useState<{ file: File; url: string; info: ImageInfo } | null>(null)
-    const [image2, setImage2] = useState<{ file: File; url: string; info: ImageInfo } | null>(null)
+    const [image1, setImage1] = useState<ComparisonImage | null>(null)
+    const [image2, setImage2] = useState<ComparisonImage | null>(null)
     const [sliderPosition, setSliderPosition] = useState(50)
     const [isDragging, setIsDragging] = useState(false)
-    const [activeUpload, setActiveUpload] = useState<1 | 2>(1)
     const containerRef = useRef<HTMLDivElement>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const preview1 = useObjectUrl(image1?.file ?? null)
+    const preview2 = useObjectUrl(image2?.file ?? null)
+    const { error } = useToast()
 
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
+    const loadImage = useCallback(async (selectedFile: File, slot: 1 | 2) => {
+        try {
+            const info = await getImageInfo(selectedFile)
+            const next = { file: selectedFile, info }
+            if (slot === 1) setImage1(next)
+            else setImage2(next)
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Could not read the image')
         }
+    }, [error])
 
-        const url = URL.createObjectURL(selectedFile)
-        const info = await getImageInfo(selectedFile)
-
-        const imageData = { file: selectedFile, url, info }
-
-        if (activeUpload === 1) {
-            if (image1?.url) URL.revokeObjectURL(image1.url)
-            setImage1(imageData)
-        } else {
-            if (image2?.url) URL.revokeObjectURL(image2.url)
-            setImage2(imageData)
-        }
-    }, [activeUpload, image1, image2])
-
-    // Handle drag and drop on dropzones
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent, slot: 1 | 2) => {
-        e.preventDefault()
-        setIsDragging(false)
-        setActiveUpload(slot)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Handle slider drag
-    const handleSliderMouseDown = () => {
-        setIsDragging(true)
-    }
-
-    const handleSliderMouseMove = useCallback((e: React.MouseEvent) => {
-        if (!isDragging || !containerRef.current) return
-
-        const rect = containerRef.current.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const percentage = (x / rect.width) * 100
-        setSliderPosition(Math.max(0, Math.min(100, percentage)))
-    }, [isDragging])
-
-    const handleSliderMouseUp = () => {
-        setIsDragging(false)
-    }
-
-    // Handle touch events
-    const handleTouchMove = useCallback((e: React.TouchEvent) => {
-        if (!containerRef.current) return
-
-        const rect = containerRef.current.getBoundingClientRect()
-        const x = e.touches[0].clientX - rect.left
-        const percentage = (x / rect.width) * 100
+    const updateFromClientX = useCallback((clientX: number) => {
+        const container = containerRef.current
+        if (!container) return
+        const rect = container.getBoundingClientRect()
+        if (rect.width === 0) return
+        const percentage = ((clientX - rect.left) / rect.width) * 100
         setSliderPosition(Math.max(0, Math.min(100, percentage)))
     }, [])
 
-    // Reset
+    useEffect(() => {
+        if (!isDragging) return
+        const onMove = (event: PointerEvent) => {
+            event.preventDefault()
+            updateFromClientX(event.clientX)
+        }
+        const stop = () => setIsDragging(false)
+        window.addEventListener('pointermove', onMove)
+        window.addEventListener('pointerup', stop)
+        window.addEventListener('pointercancel', stop)
+        return () => {
+            window.removeEventListener('pointermove', onMove)
+            window.removeEventListener('pointerup', stop)
+            window.removeEventListener('pointercancel', stop)
+        }
+    }, [isDragging, updateFromClientX])
+
     const handleReset = () => {
-        if (image1?.url) URL.revokeObjectURL(image1.url)
-        if (image2?.url) URL.revokeObjectURL(image2.url)
         setImage1(null)
         setImage2(null)
         setSliderPosition(50)
     }
 
-    const bothImagesLoaded = image1 && image2
+    const bothImagesLoaded = Boolean(image1 && image2)
 
     return (
         <div className="tool-page">
@@ -102,64 +77,38 @@ export default function ImageComparisonSlider({ onBack }: ImageComparisonSliderP
 
             {!bothImagesLoaded ? (
                 <>
-                    {/* Upload Two Images */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                        {/* Image 1 */}
-                        <div
-                            className={`dropzone ${isDragging && activeUpload === 1 ? 'dragging' : ''}`}
-                            onClick={() => { setActiveUpload(1); fileInputRef.current?.click() }}
-                            onDragOver={(e) => { handleDragOver(e); setActiveUpload(1) }}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, 1)}
-                            style={{ minHeight: '200px' }}
+                    <div className="comparison-upload-grid">
+                        <Dropzone
+                            onFiles={(files) => { void loadImage(files[0], 1) }}
+                            title={image1 ? 'Replace first image' : 'First Image (Before)'}
+                            icon="1️⃣"
+                            enablePaste
                         >
-                            {image1 ? (
+                            {preview1 && image1 && (
                                 <div style={{ textAlign: 'center' }}>
-                                    <img src={image1.url} alt="Image 1" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px' }} />
+                                    <img src={preview1} alt="First" style={{ maxWidth: '100%', maxHeight: 150, borderRadius: 8 }} />
                                     <p style={{ marginTop: '0.5rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem' }}>
                                         {image1.info.width}×{image1.info.height}
                                     </p>
                                 </div>
-                            ) : (
-                                <div className="dropzone-content">
-                                    <div className="dropzone-icon" style={{ fontSize: '2rem' }}>1️⃣</div>
-                                    <p className="dropzone-text" style={{ fontSize: '1rem' }}>First Image (Before)</p>
-                                </div>
                             )}
-                        </div>
-
-                        {/* Image 2 */}
-                        <div
-                            className={`dropzone ${isDragging && activeUpload === 2 ? 'dragging' : ''}`}
-                            onClick={() => { setActiveUpload(2); fileInputRef.current?.click() }}
-                            onDragOver={(e) => { handleDragOver(e); setActiveUpload(2) }}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, 2)}
-                            style={{ minHeight: '200px' }}
+                        </Dropzone>
+                        <Dropzone
+                            onFiles={(files) => { void loadImage(files[0], 2) }}
+                            title={image2 ? 'Replace second image' : 'Second Image (After)'}
+                            icon="2️⃣"
+                            enablePaste={false}
                         >
-                            {image2 ? (
+                            {preview2 && image2 && (
                                 <div style={{ textAlign: 'center' }}>
-                                    <img src={image2.url} alt="Image 2" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px' }} />
+                                    <img src={preview2} alt="Second" style={{ maxWidth: '100%', maxHeight: 150, borderRadius: 8 }} />
                                     <p style={{ marginTop: '0.5rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem' }}>
                                         {image2.info.width}×{image2.info.height}
                                     </p>
                                 </div>
-                            ) : (
-                                <div className="dropzone-content">
-                                    <div className="dropzone-icon" style={{ fontSize: '2rem' }}>2️⃣</div>
-                                    <p className="dropzone-text" style={{ fontSize: '1rem' }}>Second Image (After)</p>
-                                </div>
                             )}
-                        </div>
+                        </Dropzone>
                     </div>
-
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
 
                     <div style={{
                         marginTop: '1.5rem',
@@ -175,9 +124,9 @@ export default function ImageComparisonSlider({ onBack }: ImageComparisonSliderP
                 </>
             ) : (
                 <>
-                    {/* Comparison Slider */}
                     <div
                         ref={containerRef}
+                        className="comparison-slider"
                         style={{
                             position: 'relative',
                             width: '100%',
@@ -186,25 +135,21 @@ export default function ImageComparisonSlider({ onBack }: ImageComparisonSliderP
                             borderRadius: '16px',
                             overflow: 'hidden',
                             cursor: 'ew-resize',
-                            userSelect: 'none'
+                            userSelect: 'none',
+                            touchAction: 'none'
                         }}
-                        onMouseMove={handleSliderMouseMove}
-                        onMouseUp={handleSliderMouseUp}
-                        onMouseLeave={handleSliderMouseUp}
-                        onTouchMove={handleTouchMove}
+                        onPointerDown={(event) => {
+                            setIsDragging(true)
+                            updateFromClientX(event.clientX)
+                        }}
                     >
-                        {/* Image 2 (Background - Right side) */}
                         <img
-                            src={image2.url}
+                            src={preview2 ?? undefined}
                             alt="After"
-                            style={{
-                                width: '100%',
-                                display: 'block'
-                            }}
+                            style={{ width: '100%', display: 'block' }}
                             draggable={false}
                         />
 
-                        {/* Image 1 (Overlay - Left side with clip) */}
                         <div
                             style={{
                                 position: 'absolute',
@@ -216,18 +161,13 @@ export default function ImageComparisonSlider({ onBack }: ImageComparisonSliderP
                             }}
                         >
                             <img
-                                src={image1.url}
+                                src={preview1 ?? undefined}
                                 alt="Before"
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'cover'
-                                }}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 draggable={false}
                             />
                         </div>
 
-                        {/* Slider Line */}
                         <div
                             style={{
                                 position: 'absolute',
@@ -241,10 +181,28 @@ export default function ImageComparisonSlider({ onBack }: ImageComparisonSliderP
                             }}
                         />
 
-                        {/* Slider Handle */}
                         <div
-                            onMouseDown={handleSliderMouseDown}
-                            onTouchStart={handleSliderMouseDown}
+                            role="slider"
+                            tabIndex={0}
+                            aria-label="Comparison position"
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={Math.round(sliderPosition)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'ArrowLeft') {
+                                    event.preventDefault()
+                                    setSliderPosition((value) => Math.max(0, value - 2))
+                                } else if (event.key === 'ArrowRight') {
+                                    event.preventDefault()
+                                    setSliderPosition((value) => Math.min(100, value + 2))
+                                } else if (event.key === 'Home') {
+                                    event.preventDefault()
+                                    setSliderPosition(0)
+                                } else if (event.key === 'End') {
+                                    event.preventDefault()
+                                    setSliderPosition(100)
+                                }
+                            }}
                             style={{
                                 position: 'absolute',
                                 top: '50%',
@@ -266,36 +224,10 @@ export default function ImageComparisonSlider({ onBack }: ImageComparisonSliderP
                             ↔️
                         </div>
 
-                        {/* Labels */}
-                        <div style={{
-                            position: 'absolute',
-                            bottom: '1rem',
-                            left: '1rem',
-                            padding: '0.5rem 1rem',
-                            background: 'rgba(0,0,0,0.7)',
-                            borderRadius: '8px',
-                            color: 'white',
-                            fontSize: '0.875rem',
-                            fontWeight: 600
-                        }}>
-                            Before
-                        </div>
-                        <div style={{
-                            position: 'absolute',
-                            bottom: '1rem',
-                            right: '1rem',
-                            padding: '0.5rem 1rem',
-                            background: 'rgba(0,0,0,0.7)',
-                            borderRadius: '8px',
-                            color: 'white',
-                            fontSize: '0.875rem',
-                            fontWeight: 600
-                        }}>
-                            After
-                        </div>
+                        <div style={labelStyle('left')}>Before</div>
+                        <div style={labelStyle('right')}>After</div>
                     </div>
 
-                    {/* Slider Position Control */}
                     <div className="controls-panel" style={{ marginTop: '1.5rem', maxWidth: '800px', margin: '1.5rem auto 0' }}>
                         <div className="control-group">
                             <label className="control-label">
@@ -307,13 +239,12 @@ export default function ImageComparisonSlider({ onBack }: ImageComparisonSliderP
                                 min="0"
                                 max="100"
                                 value={sliderPosition}
-                                onChange={(e) => setSliderPosition(Number(e.target.value))}
+                                onChange={(event) => setSliderPosition(Number(event.target.value))}
                                 style={{ width: '100%' }}
                             />
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="actions-bar">
                         <button className="secondary-button" onClick={handleReset}>
                             🔄 Compare New Images
@@ -323,4 +254,18 @@ export default function ImageComparisonSlider({ onBack }: ImageComparisonSliderP
             )}
         </div>
     )
+}
+
+function labelStyle(side: 'left' | 'right') {
+    return {
+        position: 'absolute' as const,
+        bottom: '1rem',
+        [side]: '1rem',
+        padding: '0.5rem 1rem',
+        background: 'rgba(0,0,0,0.7)',
+        borderRadius: '8px',
+        color: 'white',
+        fontSize: '0.875rem',
+        fontWeight: 600,
+    }
 }

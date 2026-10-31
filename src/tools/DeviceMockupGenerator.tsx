@@ -1,5 +1,16 @@
-import { useCallback, useRef, useState } from 'react'
-import { downloadBlob, formatFileSize, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { useCallback, useEffect, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import {
+    buildOutputName,
+    canvasToBlob,
+    downloadBlob,
+    formatFileSize,
+    getImageInfo,
+    loadImage,
+    type ImageInfo,
+} from '../utils/imageProcessing'
 
 interface DeviceMockupGeneratorProps {
     onBack: () => void
@@ -123,122 +134,95 @@ const DEVICE_FRAMES: DeviceFrame[] = [
 
 export default function DeviceMockupGenerator({ onBack }: DeviceMockupGeneratorProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
     const [selectedDevice, setSelectedDevice] = useState<DeviceFrame>(DEVICE_FRAMES[0])
-    const [mockupUrl, setMockupUrl] = useState<string | null>(null)
     const [mockupBlob, setMockupBlob] = useState<Blob | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
     const [backgroundColor, setBackgroundColor] = useState('#667eea')
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const preview = useObjectUrl(file)
+    const mockupUrl = useObjectUrl(mockupBlob)
+    const { error } = useToast()
 
-    // Generate mockup
+    useEffect(() => {
+        if (!file) return
+        let active = true
+        getImageInfo(file)
+            .then((info) => { if (active) setOriginalInfo(info) })
+            .catch((err) => { if (active) error(err instanceof Error ? err.message : 'Could not read the image') })
+        return () => { active = false }
+    }, [error, file])
+
     const generateMockup = async (imageFile: File, device: DeviceFrame, bgColor: string): Promise<Blob> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            const url = URL.createObjectURL(imageFile)
+        const img = await loadImage(imageFile)
+        const imgWidth = img.naturalWidth || img.width
+        const imgHeight = img.naturalHeight || img.height
+        const padding = 80
+        const canvas = document.createElement('canvas')
+        canvas.width = device.width + padding * 2
+        canvas.height = device.height + padding * 2
 
-            img.onload = () => {
-                URL.revokeObjectURL(url)
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('Canvas is not available')
 
-                const padding = 80
-                const canvas = document.createElement('canvas')
-                canvas.width = device.width + padding * 2
-                canvas.height = device.height + padding * 2
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+        gradient.addColorStop(0, bgColor)
+        gradient.addColorStop(1, adjustColor(bgColor, -30))
+        ctx.fillStyle = gradient
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-                const ctx = canvas.getContext('2d')
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'))
-                    return
-                }
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
+        ctx.shadowBlur = 40
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 20
 
-                // Draw gradient background
-                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
-                gradient.addColorStop(0, bgColor)
-                gradient.addColorStop(1, adjustColor(bgColor, -30))
-                ctx.fillStyle = gradient
-                ctx.fillRect(0, 0, canvas.width, canvas.height)
+        if (device.id === 'browser') {
+            drawBrowserFrame(ctx, padding, padding, device)
+        } else {
+            ctx.fillStyle = device.frameColor
+            roundRect(ctx, padding, padding, device.width, device.height, device.borderRadius)
+            ctx.fill()
+        }
 
-                // Draw device shadow
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
-                ctx.shadowBlur = 40
-                ctx.shadowOffsetX = 0
-                ctx.shadowOffsetY = 20
+        ctx.shadowColor = 'transparent'
 
-                // Draw device frame
-                if (device.id === 'browser') {
-                    // Browser window special case
-                    drawBrowserFrame(ctx, padding, padding, device)
-                } else {
-                    // Device frame
-                    ctx.fillStyle = device.frameColor
-                    roundRect(ctx, padding, padding, device.width, device.height, device.borderRadius)
-                    ctx.fill()
-                }
+        ctx.fillStyle = '#000000'
+        roundRect(
+            ctx,
+            padding + device.screenX,
+            padding + device.screenY,
+            device.screenWidth,
+            device.screenHeight,
+            device.borderRadius - device.bezelWidth
+        )
+        ctx.fill()
 
-                ctx.shadowColor = 'transparent'
+        ctx.save()
+        roundRect(
+            ctx,
+            padding + device.screenX,
+            padding + device.screenY,
+            device.screenWidth,
+            device.screenHeight,
+            device.borderRadius - device.bezelWidth
+        )
+        ctx.clip()
 
-                // Draw screen area (dark)
-                ctx.fillStyle = '#000000'
-                roundRect(
-                    ctx,
-                    padding + device.screenX,
-                    padding + device.screenY,
-                    device.screenWidth,
-                    device.screenHeight,
-                    device.borderRadius - device.bezelWidth
-                )
-                ctx.fill()
+        const scale = Math.max(device.screenWidth / imgWidth, device.screenHeight / imgHeight)
+        const scaledWidth = imgWidth * scale
+        const scaledHeight = imgHeight * scale
+        const x = padding + device.screenX + (device.screenWidth - scaledWidth) / 2
+        const y = padding + device.screenY + (device.screenHeight - scaledHeight) / 2
 
-                // Draw screenshot
-                ctx.save()
-                roundRect(
-                    ctx,
-                    padding + device.screenX,
-                    padding + device.screenY,
-                    device.screenWidth,
-                    device.screenHeight,
-                    device.borderRadius - device.bezelWidth
-                )
-                ctx.clip()
+        ctx.drawImage(img, x, y, scaledWidth, scaledHeight)
+        ctx.restore()
 
-                // Scale image to fit screen
-                const scale = Math.max(
-                    device.screenWidth / img.width,
-                    device.screenHeight / img.height
-                )
-                const scaledWidth = img.width * scale
-                const scaledHeight = img.height * scale
-                const x = padding + device.screenX + (device.screenWidth - scaledWidth) / 2
-                const y = padding + device.screenY + (device.screenHeight - scaledHeight) / 2
+        if (device.id === 'iphone-14') {
+            ctx.fillStyle = '#000000'
+            roundRect(ctx, padding + device.width / 2 - 60, padding + 18, 120, 30, 15)
+            ctx.fill()
+        }
 
-                ctx.drawImage(img, x, y, scaledWidth, scaledHeight)
-                ctx.restore()
-
-                // Add notch for iPhone
-                if (device.id === 'iphone-14') {
-                    ctx.fillStyle = '#000000'
-                    roundRect(ctx, padding + device.width / 2 - 60, padding + 18, 120, 30, 15)
-                    ctx.fill()
-                }
-
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob) resolve(blob)
-                        else reject(new Error('Failed to create mockup'))
-                    },
-                    'image/png'
-                )
-            }
-
-            img.onerror = () => {
-                URL.revokeObjectURL(url)
-                reject(new Error('Failed to load image'))
-            }
-
-            img.src = url
-        })
+        return canvasToBlob(canvas, 'image/png')
     }
 
     // Draw browser frame
@@ -298,82 +282,32 @@ export default function DeviceMockupGenerator({ onBack }: DeviceMockupGeneratorP
         return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
     }
 
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
-
+    const handleFile = useCallback((selectedFile: File) => {
         setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
-
-        try {
-            const info = await getImageInfo(selectedFile)
-            setOriginalInfo(info)
-        } catch (error) {
-            console.error('Error getting image info:', error)
-        }
-
-        if (mockupUrl) URL.revokeObjectURL(mockupUrl)
-        setMockupUrl(null)
         setMockupBlob(null)
-    }, [mockupUrl])
+    }, [])
 
-    // Generate mockup when device/color changes
     const handleGenerate = async () => {
-        if (!file) return
-
+        if (!file || isProcessing) return
         setIsProcessing(true)
         try {
-            if (mockupUrl) URL.revokeObjectURL(mockupUrl)
-            const blob = await generateMockup(file, selectedDevice, backgroundColor)
-            setMockupBlob(blob)
-            setMockupUrl(URL.createObjectURL(blob))
-        } catch (error) {
-            console.error('Error generating mockup:', error)
-            alert('Error generating mockup')
+            setMockupBlob(await generateMockup(file, selectedDevice, backgroundColor))
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Could not generate the mockup')
         } finally {
             setIsProcessing(false)
         }
     }
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Download mockup
     const handleDownload = () => {
         if (!mockupBlob || !file) return
-        const baseName = file.name.replace(/\.[^/.]+$/, '')
-        downloadBlob(mockupBlob, `${baseName}_${selectedDevice.id}_mockup.png`)
+        downloadBlob(mockupBlob, buildOutputName(file.name, `${selectedDevice.id}-mockup`, 'png'))
     }
 
-    // Reset
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
-        if (mockupUrl) URL.revokeObjectURL(mockupUrl)
         setFile(null)
-        setPreview(null)
         setOriginalInfo(null)
-        setMockupUrl(null)
         setMockupBlob(null)
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     const bgColors = ['#667eea', '#f093fb', '#4facfe', '#38ef7d', '#ff6b6b', '#1a1a2e', '#ffffff']
@@ -386,26 +320,12 @@ export default function DeviceMockupGenerator({ onBack }: DeviceMockupGeneratorP
             </div>
 
             {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">📱</div>
-                        <p className="dropzone-text">Drop your screenshot here or click to browse</p>
-                        <p className="dropzone-hint">Place screenshots in iPhone, MacBook, browser frames</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
+                <Dropzone
+                    onFiles={(files) => handleFile(files[0])}
+                    icon="📱"
+                    title="Drop your screenshot here or click to browse"
+                    hint="Place screenshots in iPhone, MacBook, browser frames"
+                />
             ) : (
                 <>
                     {/* Device & Color Selection */}
@@ -451,8 +371,11 @@ export default function DeviceMockupGenerator({ onBack }: DeviceMockupGeneratorP
                             </label>
                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                                 {bgColors.map(color => (
-                                    <div
+                                    <button
+                                        type="button"
                                         key={color}
+                                        aria-label={`Background colour ${color}`}
+                                        aria-pressed={backgroundColor === color}
                                         onClick={() => setBackgroundColor(color)}
                                         style={{
                                             width: 40,
@@ -489,6 +412,11 @@ export default function DeviceMockupGenerator({ onBack }: DeviceMockupGeneratorP
                     {mockupUrl && (
                         <div className="image-preview-container" style={{ marginTop: '1.5rem' }}>
                             <img src={mockupUrl} alt="Mockup" className="image-preview" style={{ maxHeight: '500px' }} />
+                        </div>
+                    )}
+                    {!mockupUrl && preview && (
+                        <div className="image-preview-container" style={{ marginTop: '1.5rem' }}>
+                            <img src={preview} alt="Source screenshot" className="image-preview" style={{ maxHeight: '300px' }} />
                         </div>
                     )}
 

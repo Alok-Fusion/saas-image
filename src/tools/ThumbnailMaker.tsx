@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { downloadBlob } from '../utils/imageProcessing'
+import { useToast } from '../components/Toast'
+import { validateImageFile } from '../utils/fileIntake'
+import { canvasToBlob, downloadBlob } from '../utils/imageProcessing'
 
 interface ThumbnailMakerProps {
     onBack: () => void
@@ -57,10 +59,33 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
     const [newText, setNewText] = useState('Your Text Here')
     const [isDragging, setIsDragging] = useState(false)
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+    const [previewScale, setPreviewScale] = useState(0.5)
+    const [isExporting, setIsExporting] = useState(false)
     const canvasRef = useRef<HTMLDivElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const overlayInputRef = useRef<HTMLInputElement>(null)
     const idCounter = useRef(0)
+    const overlayUrlsRef = useRef(new Set<string>())
+    const { error, success } = useToast()
+
+    useEffect(() => {
+        const element = canvasRef.current
+        if (!element) return
+        const observer = new ResizeObserver((entries) => {
+            const width = entries[0]?.contentRect.width ?? 0
+            if (width > 0) setPreviewScale(width / canvasWidth)
+        })
+        observer.observe(element)
+        return () => observer.disconnect()
+    }, [canvasWidth])
+
+    useEffect(() => () => {
+        overlayUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+    }, [])
+
+    useEffect(() => () => {
+        if (bgImage) URL.revokeObjectURL(bgImage)
+    }, [bgImage])
 
     const nextId = (prefix: string) => {
         idCounter.current += 1
@@ -80,7 +105,7 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
             fontWeight: 'bold',
             rotation: 0
         }
-        setElements([...elements, newElement])
+        setElements((current) => [...current, newElement])
         setSelectedId(id)
     }
 
@@ -96,13 +121,18 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
             fontSize: 64,
             rotation: 0
         }
-        setElements([...elements, newElement])
+        setElements((current) => [...current, newElement])
         setSelectedId(id)
     }
 
-    // Add overlay image
-    const addOverlayImage = (file: File) => {
+    const addOverlayImage = async (file: File) => {
+        const validation = await validateImageFile(file)
+        if (!validation.ok) {
+            error(validation.error)
+            return
+        }
         const url = URL.createObjectURL(file)
+        overlayUrlsRef.current.add(url)
         const img = new Image()
         img.onload = () => {
             const id = nextId('img')
@@ -116,55 +146,64 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
                 height: img.height * scale,
                 rotation: 0
             }
-            setElements([...elements, newElement])
+            setElements((current) => [...current, newElement])
             setSelectedId(id)
+        }
+        img.onerror = () => {
+            URL.revokeObjectURL(url)
+            overlayUrlsRef.current.delete(url)
+            error('Could not load that image')
         }
         img.src = url
     }
 
-    // Set background image
-    const handleBgImage = (file: File) => {
-        const url = URL.createObjectURL(file)
-        setBgImage(url)
+    const handleBgImage = async (file: File) => {
+        const validation = await validateImageFile(file)
+        if (!validation.ok) {
+            error(validation.error)
+            return
+        }
+        setBgImage(URL.createObjectURL(file))
     }
 
-    // Element drag handlers
-    const handleMouseDown = (e: React.MouseEvent, id: string) => {
-        e.stopPropagation()
+    const handlePointerDown = (event: React.PointerEvent, id: string) => {
+        event.stopPropagation()
         setSelectedId(id)
         setIsDragging(true)
-        const el = elements.find(el => el.id === id)
-        if (el && canvasRef.current) {
+        const element = elements.find((item) => item.id === id)
+        if (element && canvasRef.current) {
             const rect = canvasRef.current.getBoundingClientRect()
             const scale = canvasWidth / rect.width
             setDragOffset({
-                x: (e.clientX - rect.left) * scale - el.x,
-                y: (e.clientY - rect.top) * scale - el.y
+                x: (event.clientX - rect.left) * scale - element.x,
+                y: (event.clientY - rect.top) * scale - element.y
             })
         }
     }
 
-    const handleMouseMove = useCallback((e: MouseEvent) => {
+    const handlePointerMove = useCallback((event: PointerEvent) => {
         if (!isDragging || !selectedId || !canvasRef.current) return
         const rect = canvasRef.current.getBoundingClientRect()
         const scale = canvasWidth / rect.width
-        const x = (e.clientX - rect.left) * scale - dragOffset.x
-        const y = (e.clientY - rect.top) * scale - dragOffset.y
-        setElements(els => els.map(el => el.id === selectedId ? { ...el, x, y } : el))
+        const x = (event.clientX - rect.left) * scale - dragOffset.x
+        const y = (event.clientY - rect.top) * scale - dragOffset.y
+        setElements((current) => current.map((element) => element.id === selectedId ? { ...element, x, y } : element))
     }, [isDragging, selectedId, dragOffset, canvasWidth])
 
-    const handleMouseUp = useCallback(() => {
+    const handlePointerUp = useCallback(() => {
         setIsDragging(false)
     }, [])
 
     useEffect(() => {
-        window.addEventListener('mousemove', handleMouseMove)
-        window.addEventListener('mouseup', handleMouseUp)
+        window.addEventListener('pointermove', handlePointerMove)
+        window.addEventListener('pointerup', handlePointerUp)
+        window.addEventListener('pointercancel', handlePointerUp)
         return () => {
-            window.removeEventListener('mousemove', handleMouseMove)
-            window.removeEventListener('mouseup', handleMouseUp)
+            window.removeEventListener('pointermove', handlePointerMove)
+            window.removeEventListener('pointerup', handlePointerUp)
+            window.removeEventListener('pointercancel', handlePointerUp)
         }
-    }, [handleMouseMove, handleMouseUp])
+    }, [handlePointerMove, handlePointerUp])
 
     // Update selected element
     const updateElement = (updates: Partial<CanvasElement>) => {
@@ -172,68 +211,78 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
         setElements(els => els.map(el => el.id === selectedId ? { ...el, ...updates } : el))
     }
 
-    // Delete element
     const deleteElement = () => {
         if (!selectedId) return
-        setElements(els => els.filter(el => el.id !== selectedId))
+        const element = elements.find((item) => item.id === selectedId)
+        if (element && 'src' in element) {
+            URL.revokeObjectURL(element.src)
+            overlayUrlsRef.current.delete(element.src)
+        }
+        setElements((current) => current.filter((item) => item.id !== selectedId))
         setSelectedId(null)
     }
 
     // Get selected element
     const selectedElement = elements.find(el => el.id === selectedId)
 
-    // Export as image
+    const loadImageElement = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image()
+        image.onload = () => resolve(image)
+        image.onerror = () => reject(new Error('Could not load an image on the canvas'))
+        image.src = src
+    })
+
     const exportImage = async () => {
-        const canvas = document.createElement('canvas')
-        canvas.width = canvasWidth
-        canvas.height = canvasHeight
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
+        if (isExporting) return
+        setIsExporting(true)
+        try {
+            const canvas = document.createElement('canvas')
+            canvas.width = canvasWidth
+            canvas.height = canvasHeight
+            const ctx = canvas.getContext('2d')
+            if (!ctx) throw new Error('Canvas is not available')
 
-        // Background
-        ctx.fillStyle = bgColor
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+            ctx.fillStyle = bgColor
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight)
 
-        // Background image
-        if (bgImage) {
-            const img = new Image()
-            img.crossOrigin = 'anonymous'
-            await new Promise<void>(resolve => { img.onload = () => resolve(); img.src = bgImage })
-            ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
-        }
-
-        // Elements
-        for (const el of elements) {
-            ctx.save()
-            ctx.translate(el.x, el.y)
-            if ('rotation' in el) ctx.rotate((el.rotation * Math.PI) / 180)
-
-            if ('text' in el) {
-                const textEl = el as TextElement
-                ctx.font = `${textEl.fontWeight} ${textEl.fontSize}px Arial, sans-serif`
-                ctx.fillStyle = textEl.color
-                ctx.textBaseline = 'top'
-                ctx.shadowColor = 'rgba(0,0,0,0.5)'
-                ctx.shadowBlur = 8
-                ctx.fillText(textEl.text, 0, 0)
-            } else if ('emoji' in el) {
-                const emojiEl = el as EmojiElement
-                ctx.font = `${emojiEl.fontSize}px Arial`
-                ctx.textBaseline = 'top'
-                ctx.fillText(emojiEl.emoji, 0, 0)
-            } else if ('src' in el) {
-                const imgEl = el as ImageElement
-                const img = new Image()
-                img.crossOrigin = 'anonymous'
-                await new Promise<void>(resolve => { img.onload = () => resolve(); img.src = imgEl.src })
-                ctx.drawImage(img, 0, 0, imgEl.width, imgEl.height)
+            if (bgImage) {
+                const image = await loadImageElement(bgImage)
+                const scale = Math.max(canvasWidth / image.width, canvasHeight / image.height)
+                const width = image.width * scale
+                const height = image.height * scale
+                ctx.drawImage(image, (canvasWidth - width) / 2, (canvasHeight - height) / 2, width, height)
             }
-            ctx.restore()
-        }
 
-        canvas.toBlob(blob => {
-            if (blob) downloadBlob(blob, 'thumbnail.png')
-        }, 'image/png')
+            for (const element of elements) {
+                ctx.save()
+                ctx.translate(element.x, element.y)
+                ctx.rotate((element.rotation * Math.PI) / 180)
+
+                if ('text' in element) {
+                    ctx.font = `${element.fontWeight} ${element.fontSize}px Arial, sans-serif`
+                    ctx.fillStyle = element.color
+                    ctx.textBaseline = 'top'
+                    ctx.shadowColor = 'rgba(0,0,0,0.5)'
+                    ctx.shadowBlur = 8
+                    ctx.fillText(element.text, 0, 0)
+                } else if ('emoji' in element) {
+                    ctx.font = `${element.fontSize}px Arial`
+                    ctx.textBaseline = 'top'
+                    ctx.fillText(element.emoji, 0, 0)
+                } else if ('src' in element) {
+                    const image = await loadImageElement(element.src)
+                    ctx.drawImage(image, 0, 0, element.width, element.height)
+                }
+                ctx.restore()
+            }
+
+            downloadBlob(await canvasToBlob(canvas, 'image/png'), 'thumbnail.png')
+            success('Thumbnail exported')
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Could not export the thumbnail')
+        } finally {
+            setIsExporting(false)
+        }
     }
 
     return (
@@ -256,35 +305,37 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
 
                     <div ref={canvasRef} style={{
                         width: '100%',
-                        maxWidth: canvasWidth * 0.5,
+                        maxWidth: 640,
                         aspectRatio: `${canvasWidth}/${canvasHeight}`,
                         background: bgImage ? `url(${bgImage}) center/cover` : bgColor,
                         borderRadius: 12,
                         position: 'relative',
                         overflow: 'hidden',
                         cursor: 'default',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                        touchAction: isDragging ? 'none' : 'auto',
                     }} onClick={() => setSelectedId(null)}>
                         {elements.map(el => (
-                            <div key={el.id} onMouseDown={(e) => handleMouseDown(e, el.id)} style={{
+                            <div key={el.id} onPointerDown={(event) => handlePointerDown(event, el.id)} style={{
                                 position: 'absolute',
                                 left: `${(el.x / canvasWidth) * 100}%`,
                                 top: `${(el.y / canvasHeight) * 100}%`,
-                                transform: `rotate(${'rotation' in el ? el.rotation : 0}deg)`,
+                                transform: `rotate(${el.rotation}deg)`,
+                                transformOrigin: 'top left',
                                 cursor: 'move',
-                                border: selectedId === el.id ? '2px dashed #667eea' : 'none',
-                                padding: selectedId === el.id ? 4 : 0,
+                                outline: selectedId === el.id ? '2px dashed #667eea' : 'none',
                                 borderRadius: 4,
-                                userSelect: 'none'
+                                userSelect: 'none',
+                                touchAction: 'none',
                             }}>
                                 {'text' in el && (
-                                    <span style={{ fontSize: (el as TextElement).fontSize * 0.5, color: (el as TextElement).color, fontWeight: (el as TextElement).fontWeight, textShadow: '2px 2px 8px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>{(el as TextElement).text}</span>
+                                    <span style={{ fontSize: el.fontSize * previewScale, color: el.color, fontWeight: el.fontWeight, textShadow: '2px 2px 8px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>{el.text}</span>
                                 )}
                                 {'emoji' in el && (
-                                    <span style={{ fontSize: (el as EmojiElement).fontSize * 0.5 }}>{(el as EmojiElement).emoji}</span>
+                                    <span style={{ fontSize: el.fontSize * previewScale }}>{el.emoji}</span>
                                 )}
                                 {'src' in el && (
-                                    <img src={(el as ImageElement).src} alt="" style={{ width: (el as ImageElement).width * 0.5, height: (el as ImageElement).height * 0.5, pointerEvents: 'none' }} draggable={false} />
+                                    <img src={el.src} alt="" style={{ width: el.width * previewScale, height: el.height * previewScale, pointerEvents: 'none' }} draggable={false} />
                                 )}
                             </div>
                         ))}
@@ -365,7 +416,9 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
                     )}
 
                     {/* Export */}
-                    <button className="download-button" onClick={exportImage} style={{ width: '100%', marginTop: '1rem' }}>⬇️ Export Thumbnail</button>
+                    <button className="download-button" onClick={exportImage} disabled={isExporting} style={{ width: '100%', marginTop: '1rem' }}>
+                        {isExporting ? '⏳ Exporting…' : '⬇️ Export Thumbnail'}
+                    </button>
                 </div>
             </div>
         </div>

@@ -1,6 +1,15 @@
-import { removeBackground } from '@imgly/background-removal'
-import { useCallback, useRef, useState } from 'react'
-import { applyBackground, downloadBlob, formatFileSize, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import {
+    applyBackground,
+    buildOutputName,
+    downloadBlob,
+    formatFileSize,
+    getImageInfo,
+    type ImageInfo,
+} from '../utils/imageProcessing'
 
 interface BackgroundRemoverProps {
     onBack: () => void
@@ -8,165 +17,110 @@ interface BackgroundRemoverProps {
 
 export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
     const [processedBlob, setProcessedBlob] = useState<Blob | null>(null)
-    const [processedPreview, setProcessedPreview] = useState<string | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [progress, setProgress] = useState(0)
-    const [isDragging, setIsDragging] = useState(false)
     const [showOriginal, setShowOriginal] = useState(false)
     const [backgroundColor, setBackgroundColor] = useState('#ffffff')
     const [applyBg, setApplyBg] = useState(false)
     const [finalBlob, setFinalBlob] = useState<Blob | null>(null)
-    const [finalPreview, setFinalPreview] = useState<string | null>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const runIdRef = useRef(0)
+    const bgRunIdRef = useRef(0)
+    const preview = useObjectUrl(file)
+    const finalPreview = useObjectUrl(finalBlob)
+    const { error } = useToast()
 
-    // Handle file selection
-    const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
-
-        setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
-
-        try {
-            const info = await getImageInfo(selectedFile)
-            setOriginalInfo(info)
-        } catch (error) {
-            console.error('Error getting image info:', error)
-        }
-
-        // Reset processed state
-        setProcessedBlob(null)
-        setProcessedPreview(null)
-        setFinalBlob(null)
-        setFinalPreview(null)
-        setProgress(0)
-    }, [])
-
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Process image - remove background
-    const handleRemoveBackground = async () => {
+    useEffect(() => {
         if (!file) return
+        let active = true
+        getImageInfo(file)
+            .then((info) => { if (active) setOriginalInfo(info) })
+            .catch((err) => { if (active) error(err instanceof Error ? err.message : 'Could not read the image') })
+        return () => { active = false }
+    }, [error, file])
 
+    const handleFile = useCallback((selectedFile: File) => {
+        runIdRef.current += 1
+        bgRunIdRef.current += 1
+        setFile(selectedFile)
+        setProcessedBlob(null)
+        setFinalBlob(null)
+        setProgress(0)
+        setApplyBg(false)
+    }, [])
+
+    const handleRemoveBackground = async () => {
+        if (!file || isProcessing) return
+
+        const runId = ++runIdRef.current
         setIsProcessing(true)
         setProgress(0)
 
         try {
+            const { removeBackground } = await import('@imgly/background-removal')
             const blob = await removeBackground(file, {
                 progress: (_key, current, total) => {
-                    // Calculate overall progress
-                    const progressPercent = Math.round((current / total) * 100)
-                    setProgress(progressPercent)
+                    if (runIdRef.current === runId && total > 0) {
+                        setProgress(Math.round((current / total) * 100))
+                    }
                 }
             })
-
+            if (runIdRef.current !== runId) return
             setProcessedBlob(blob)
-            if (processedPreview) URL.revokeObjectURL(processedPreview)
-            const url = URL.createObjectURL(blob)
-            setProcessedPreview(url)
             setFinalBlob(blob)
-            setFinalPreview(url)
-        } catch (error) {
-            console.error('Error removing background:', error)
-            alert('Error processing image. Please try again with a different image.')
-        } finally {
-            setIsProcessing(false)
             setProgress(100)
+        } catch (err) {
+            if (runIdRef.current === runId) {
+                error(err instanceof Error ? err.message : 'Could not remove the background')
+            }
+        } finally {
+            if (runIdRef.current === runId) setIsProcessing(false)
         }
     }
 
-    // Apply background color
-    const handleApplyBackground = async (color: string) => {
+    const updateFinalBackground = useCallback(async (enabled: boolean, color: string) => {
         if (!processedBlob) return
-
-        setBackgroundColor(color)
-
-        if (!applyBg) {
-            // If toggle is off, just update the color but don't apply
+        const runId = ++bgRunIdRef.current
+        if (!enabled) {
+            setFinalBlob(processedBlob)
             return
         }
-
         try {
-            const blob = await applyBackground(processedBlob, color)
-            setFinalBlob(blob)
-            if (finalPreview && finalPreview !== processedPreview) {
-                URL.revokeObjectURL(finalPreview)
+            const blob = await applyBackground(processedBlob, color, 'image/jpeg')
+            if (bgRunIdRef.current === runId) setFinalBlob(blob)
+        } catch (err) {
+            if (bgRunIdRef.current === runId) {
+                error(err instanceof Error ? err.message : 'Could not apply the background colour')
             }
-            setFinalPreview(URL.createObjectURL(blob))
-        } catch (error) {
-            console.error('Error applying background:', error)
         }
+    }, [error, processedBlob])
+
+    const handleApplyBackground = (color: string) => {
+        setBackgroundColor(color)
+        if (applyBg) void updateFinalBackground(true, color)
     }
 
-    // Toggle background color application
-    const handleToggleBackground = async (enabled: boolean) => {
+    const handleToggleBackground = (enabled: boolean) => {
         setApplyBg(enabled)
-
-        if (enabled && processedBlob) {
-            try {
-                const blob = await applyBackground(processedBlob, backgroundColor)
-                setFinalBlob(blob)
-                if (finalPreview && finalPreview !== processedPreview) {
-                    URL.revokeObjectURL(finalPreview)
-                }
-                setFinalPreview(URL.createObjectURL(blob))
-            } catch (error) {
-                console.error('Error applying background:', error)
-            }
-        } else if (processedBlob) {
-            // Reset to transparent
-            setFinalBlob(processedBlob)
-            setFinalPreview(processedPreview)
-        }
+        void updateFinalBackground(enabled, backgroundColor)
     }
 
-    // Download
     const handleDownload = () => {
         if (!finalBlob || !file) return
-
-        const baseName = file.name.replace(/\.[^/.]+$/, '')
-        const extension = applyBg ? 'jpg' : 'png'
-        downloadBlob(finalBlob, `${baseName}_no_background.${extension}`)
+        const extension = finalBlob.type === 'image/jpeg' ? 'jpg' : 'png'
+        downloadBlob(finalBlob, buildOutputName(file.name, 'no-background', extension))
     }
 
-    // Reset
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
-        if (processedPreview) URL.revokeObjectURL(processedPreview)
-        if (finalPreview && finalPreview !== processedPreview) URL.revokeObjectURL(finalPreview)
-
+        runIdRef.current += 1
+        bgRunIdRef.current += 1
         setFile(null)
-        setPreview(null)
         setOriginalInfo(null)
         setProcessedBlob(null)
-        setProcessedPreview(null)
         setFinalBlob(null)
-        setFinalPreview(null)
         setProgress(0)
         setApplyBg(false)
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     return (
@@ -177,31 +131,17 @@ export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
             </div>
 
             {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">🎭</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">AI-powered background removal • Works best with clear subjects</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
+                <Dropzone
+                    onFiles={(files) => handleFile(files[0])}
+                    icon="🎭"
+                    title="Drop your image here or click to browse"
+                    hint="AI-powered background removal • Works best with clear subjects"
+                />
             ) : !processedBlob ? (
                 <>
                     {/* Original Image Preview */}
                     <div className="image-preview-container">
-                        <img src={preview!} alt="Original" className="image-preview" />
+                        {preview && <img src={preview} alt="Original" className="image-preview" />}
                         <div className="image-info">
                             <span className="info-badge">
                                 <span className="info-badge-label">Size:</span>
@@ -247,7 +187,7 @@ export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
                     <div className="comparison-container">
                         <div className="comparison-panel">
                             <div className="comparison-label">Original</div>
-                            <img src={preview!} alt="Original" className="comparison-image" />
+                            {preview && <img src={preview} alt="Original" className="comparison-image" />}
                         </div>
 
                         <div className="comparison-panel">
@@ -255,12 +195,14 @@ export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
                                 {showOriginal ? 'Original' : 'Background Removed'}
                             </div>
                             <div className={!applyBg && !showOriginal ? 'checkered-bg' : ''} style={{ borderRadius: '12px', overflow: 'hidden' }}>
-                                <img
-                                    src={showOriginal ? preview! : finalPreview!}
-                                    alt="Processed"
-                                    className="comparison-image"
-                                    style={{ display: 'block' }}
-                                />
+                                {(showOriginal ? preview : finalPreview) && (
+                                    <img
+                                        src={showOriginal ? preview! : finalPreview!}
+                                        alt="Processed"
+                                        className="comparison-image"
+                                        style={{ display: 'block' }}
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>
@@ -273,7 +215,11 @@ export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
                             </label>
                             <div className="toggle-container">
                                 <span style={{ color: showOriginal ? '#667eea' : 'rgba(255,255,255,0.5)' }}>Compare with original</span>
-                                <div
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={showOriginal}
+                                    aria-label="Compare with original"
                                     className={`toggle ${showOriginal ? 'active' : ''}`}
                                     onClick={() => setShowOriginal(!showOriginal)}
                                 />
@@ -286,7 +232,11 @@ export default function BackgroundRemover({ onBack }: BackgroundRemoverProps) {
                             </label>
                             <div className="toggle-container" style={{ marginBottom: '1rem' }}>
                                 <span style={{ color: applyBg ? '#667eea' : 'rgba(255,255,255,0.5)' }}>Apply solid color background</span>
-                                <div
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={applyBg}
+                                    aria-label="Apply solid color background"
                                     className={`toggle ${applyBg ? 'active' : ''}`}
                                     onClick={() => handleToggleBackground(!applyBg)}
                                 />

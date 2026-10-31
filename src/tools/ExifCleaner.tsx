@@ -1,186 +1,87 @@
-import { useCallback, useRef, useState } from 'react'
-import { downloadBlob, formatFileSize, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
+﻿import { useCallback, useState } from 'react'
+import Dropzone from '../components/Dropzone'
+import { useToast } from '../components/Toast'
+import { useObjectUrl } from '../hooks/useObjectUrl'
+import { parseExif, type ExifSummary } from '../utils/exif'
+import {
+    buildOutputName,
+    canvasToBlob,
+    downloadBlob,
+    formatFileSize,
+    getExtension,
+    getImageInfo,
+    getOutputMime,
+    loadImage,
+    type ImageInfo,
+} from '../utils/imageProcessing'
 
 interface ExifCleanerProps {
     onBack: () => void
 }
 
-interface ExifData {
-    [key: string]: string | number | undefined
-}
-
 export default function ExifCleaner({ onBack }: ExifCleanerProps) {
     const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string | null>(null)
     const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
-    const [exifData, setExifData] = useState<ExifData | null>(null)
+    const [exif, setExif] = useState<ExifSummary | null>(null)
     const [cleanedBlob, setCleanedBlob] = useState<Blob | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const preview = useObjectUrl(file)
+    const { error, success } = useToast()
 
-    // Parse EXIF data from image
-    const parseExifData = async (imageFile: File): Promise<ExifData> => {
-        return new Promise((resolve) => {
-            const reader = new FileReader()
-            reader.onload = (e) => {
-                const view = new DataView(e.target?.result as ArrayBuffer)
-
-                // Check for JPEG SOI marker
-                if (view.getUint16(0) !== 0xFFD8) {
-                    resolve({})
-                    return
-                }
-
-                const exif: ExifData = {}
-                let offset = 2
-
-                while (offset < view.byteLength) {
-                    if (view.getUint16(offset) === 0xFFE1) {
-                        // Found EXIF APP1 marker
-                        const exifHeader = view.getUint32(offset + 4)
-                        if (exifHeader === 0x45786966) {
-                            // "Exif" header found
-                            exif['Has EXIF Data'] = 'Yes'
-                            exif['⚠️ Location Data'] = 'Potentially present'
-                            exif['⚠️ Camera Info'] = 'Potentially present'
-                            exif['⚠️ Date/Time'] = 'Potentially present'
-                            exif['⚠️ Software'] = 'Potentially present'
-                        }
-                        break
-                    }
-
-                    // Move to next marker
-                    const markerLength = view.getUint16(offset + 2)
-                    offset += 2 + markerLength
-                }
-
-                if (Object.keys(exif).length === 0) {
-                    exif['Has EXIF Data'] = 'No metadata found'
-                }
-
-                resolve(exif)
-            }
-            reader.readAsArrayBuffer(imageFile)
-        })
-    }
-
-    // Remove EXIF data by re-encoding the image
-    const removeExifData = async (imageFile: File): Promise<Blob> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            const url = URL.createObjectURL(imageFile)
-
-            img.onload = () => {
-                URL.revokeObjectURL(url)
-
-                const canvas = document.createElement('canvas')
-                canvas.width = img.width
-                canvas.height = img.height
-
-                const ctx = canvas.getContext('2d')
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'))
-                    return
-                }
-
-                ctx.drawImage(img, 0, 0)
-
-                // Convert to blob without EXIF
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob) resolve(blob)
-                        else reject(new Error('Failed to create clean image'))
-                    },
-                    imageFile.type === 'image/png' ? 'image/png' : 'image/jpeg',
-                    0.95
-                )
-            }
-
-            img.onerror = () => {
-                URL.revokeObjectURL(url)
-                reject(new Error('Failed to load image'))
-            }
-
-            img.src = url
-        })
-    }
-
-    // Handle file selection
     const handleFile = useCallback(async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            alert('Please select an image file')
-            return
-        }
-
         setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreview(url)
         setCleanedBlob(null)
-
+        setExif(null)
         try {
-            const info = await getImageInfo(selectedFile)
-            setOriginalInfo(info)
-
-            const exif = await parseExifData(selectedFile)
-            setExifData(exif)
-        } catch (error) {
-            console.error('Error processing image:', error)
+            setOriginalInfo(await getImageInfo(selectedFile))
+            setExif(await parseExif(selectedFile))
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Could not read the image')
         }
-    }, [])
+    }, [error])
 
-    // Handle drag and drop
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFile(droppedFile)
-    }, [handleFile])
-
-    // Clean the image
     const handleClean = async () => {
         if (!file) return
-
         setIsProcessing(true)
         try {
-            const blob = await removeExifData(file)
+            const img = await loadImage(file)
+            const canvas = document.createElement('canvas')
+            canvas.width = img.naturalWidth || img.width
+            canvas.height = img.naturalHeight || img.height
+            const ctx = canvas.getContext('2d')
+            if (!ctx) throw new Error('Canvas is not available')
+
+            const format = getOutputMime(file.type)
+            if (format === 'image/jpeg') {
+                ctx.fillStyle = '#ffffff'
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
+            }
+            ctx.drawImage(img, 0, 0)
+
+            const blob = await canvasToBlob(canvas, format, 0.92)
             setCleanedBlob(blob)
-        } catch (error) {
-            console.error('Error cleaning image:', error)
-            alert('Error processing image')
+            success('Metadata removed. The clean copy is ready.')
+        } catch (err) {
+            error(err instanceof Error ? err.message : 'Could not clean the image')
         } finally {
             setIsProcessing(false)
         }
     }
 
-    // Download cleaned image
     const handleDownload = () => {
         if (!cleanedBlob || !file) return
-        const baseName = file.name.replace(/\.[^/.]+$/, '')
-        const ext = file.type === 'image/png' ? 'png' : 'jpg'
-        downloadBlob(cleanedBlob, `${baseName}_clean.${ext}`)
+        downloadBlob(cleanedBlob, buildOutputName(file.name, 'clean', getExtension(cleanedBlob.type)))
     }
 
-    // Reset
     const handleReset = () => {
-        if (preview) URL.revokeObjectURL(preview)
         setFile(null)
-        setPreview(null)
         setOriginalInfo(null)
-        setExifData(null)
+        setExif(null)
         setCleanedBlob(null)
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
+
+    const hasFields = exif ? Object.keys(exif.fields).length > 0 : false
+    const isJpeg = file ? file.type === 'image/jpeg' || file.type === 'image/jpg' : false
 
     return (
         <div className="tool-page">
@@ -190,31 +91,16 @@ export default function ExifCleaner({ onBack }: ExifCleanerProps) {
             </div>
 
             {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">🔒</div>
-                        <p className="dropzone-text">Drop your image here or click to browse</p>
-                        <p className="dropzone-hint">Remove GPS location, camera info, and other hidden metadata</p>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        style={{ display: 'none' }}
-                    />
-                </div>
+                <Dropzone
+                    onFiles={(files) => void handleFile(files[0])}
+                    icon="🔒"
+                    title="Drop your image here or click to browse"
+                    hint="Remove GPS location, camera info, and other hidden metadata"
+                />
             ) : (
                 <>
-                    {/* Image Preview */}
                     <div className="image-preview-container">
-                        <img src={preview!} alt="Preview" className="image-preview" />
+                        {preview && <img src={preview} alt="Preview" className="image-preview" />}
                         <div className="image-info">
                             <span className="info-badge">
                                 <span className="info-badge-label">Size:</span>
@@ -227,55 +113,49 @@ export default function ExifCleaner({ onBack }: ExifCleanerProps) {
                         </div>
                     </div>
 
-                    {/* EXIF Data Display */}
-                    {exifData && (
+                    {exif && (
                         <div className="controls-panel" style={{ marginTop: '1.5rem' }}>
-                            <h3 style={{ marginBottom: '1rem', color: exifData['Has EXIF Data'] === 'Yes' ? '#f5576c' : '#38ef7d' }}>
-                                {exifData['Has EXIF Data'] === 'Yes' ? '⚠️ Metadata Found' : '✅ No Metadata Found'}
+                            <h3 style={{ marginBottom: '1rem', color: hasFields ? '#f5576c' : '#38ef7d' }}>
+                                {hasFields ? '⚠️ Metadata Found' : '✅ No Hidden Metadata Found'}
                             </h3>
 
-                            {exifData['Has EXIF Data'] === 'Yes' && (
+                            {!isJpeg && (
+                                <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)', marginBottom: '1rem' }}>
+                                    EXIF inspection is available for JPEG files. Re-encoding still strips metadata from {file.type || 'this format'}.
+                                </p>
+                            )}
+
+                            {hasFields && (
                                 <div style={{ display: 'grid', gap: '0.75rem' }}>
-                                    {Object.entries(exifData).map(([key, value]) => (
-                                        key !== 'Has EXIF Data' && (
-                                            <div key={key} className="info-badge" style={{ justifyContent: 'space-between', width: '100%' }}>
-                                                <span className="info-badge-label">{key}</span>
-                                                <span className="info-badge-value" style={{ color: '#f5576c' }}>{String(value)}</span>
-                                            </div>
-                                        )
+                                    {Object.entries(exif.fields).map(([key, value]) => (
+                                        <div key={key} className="info-badge" style={{ justifyContent: 'space-between', width: '100%' }}>
+                                            <span className="info-badge-label">{key}</span>
+                                            <span className="info-badge-value" style={{ color: '#f5576c', textAlign: 'right', overflowWrap: 'anywhere' }}>{value}</span>
+                                        </div>
                                     ))}
                                 </div>
                             )}
 
-                            {!cleanedBlob && exifData['Has EXIF Data'] === 'Yes' && (
-                                <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(245, 87, 108, 0.1)', borderRadius: '12px' }}>
-                                    <p style={{ color: '#f5576c', fontSize: '0.9rem' }}>
-                                        🚨 This image may contain sensitive data like your location, device info, and when it was taken!
-                                    </p>
+                            {!cleanedBlob && hasFields && (
+                                <div className="warning-banner" style={{ marginTop: '1rem' }}>
+                                    🚨 This image may reveal your location, device, and when it was taken.
                                 </div>
                             )}
 
                             {cleanedBlob && (
-                                <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(56, 239, 125, 0.1)', borderRadius: '12px' }}>
-                                    <p style={{ color: '#38ef7d', fontSize: '0.9rem' }}>
-                                        ✅ Image cleaned! All metadata has been removed. Safe to share.
-                                    </p>
+                                <div className="success-banner" style={{ marginTop: '1rem' }}>
+                                    ✅ Metadata removed. Download the clean copy below.
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* Action Buttons */}
                     <div className="actions-bar">
                         <button className="secondary-button" onClick={handleReset}>
                             🔄 Upload New Image
                         </button>
                         {!cleanedBlob ? (
-                            <button
-                                className="download-button"
-                                onClick={handleClean}
-                                disabled={isProcessing}
-                            >
+                            <button className="download-button" onClick={() => void handleClean()} disabled={isProcessing}>
                                 {isProcessing ? '⏳ Cleaning...' : '🧹 Remove All Metadata'}
                             </button>
                         ) : (
