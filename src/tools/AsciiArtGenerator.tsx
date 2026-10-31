@@ -4,6 +4,12 @@ interface AsciiArtGeneratorProps {
     onBack: () => void
 }
 
+const CHAR_SETS = {
+    standard: ' .:-=+*#%@',
+    blocks: ' ░▒▓█',
+    simple: ' .-:=+*#'
+} as const
+
 export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
     const [file, setFile] = useState<File | null>(null)
     const [preview, setPreview] = useState<string | null>(null)
@@ -16,14 +22,8 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
     const [inverted, setInverted] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const charSets = {
-        standard: ' .:-=+*#%@',
-        blocks: ' ░▒▓█',
-        simple: ' .-:=+*#'
-    }
-
     // Generate ASCII art from image
-    const generateAsciiArt = async (imageFile: File, outputWidth: number): Promise<string> => {
+    const generateAsciiArt = useCallback(async (imageFile: File, outputWidth: number): Promise<string> => {
         return new Promise((resolve, reject) => {
             const img = new Image()
             const url = URL.createObjectURL(imageFile)
@@ -48,7 +48,7 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
                 const imageData = ctx.getImageData(0, 0, outputWidth, outputHeight)
                 const pixels = imageData.data
 
-                const chars = inverted ? charSets[charSet].split('').reverse().join('') : charSets[charSet]
+                const chars = inverted ? CHAR_SETS[charSet].split('').reverse().join('') : CHAR_SETS[charSet]
                 let result = ''
 
                 for (let y = 0; y < outputHeight; y++) {
@@ -78,7 +78,7 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
 
             img.src = url
         })
-    }
+    }, [charSet, inverted])
 
     // Handle file selection
     const handleFile = useCallback(async (selectedFile: File) => {
@@ -102,7 +102,7 @@ export default function AsciiArtGenerator({ onBack }: AsciiArtGeneratorProps) {
         } finally {
             setIsProcessing(false)
         }
-    }, [width, charSet, inverted])
+    }, [generateAsciiArt, width])
 
     // Regenerate when settings change
     const regenerate = async () => {

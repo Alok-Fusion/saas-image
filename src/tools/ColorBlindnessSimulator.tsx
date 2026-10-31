@@ -95,6 +95,71 @@ const COLOR_BLINDNESS_TYPES: ColorBlindnessType[] = [
     }
 ]
 
+function simulateColorBlindness(imageFile: File, type: ColorBlindnessType): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+        const img = new Image()
+        const url = URL.createObjectURL(imageFile)
+
+        img.onload = () => {
+            URL.revokeObjectURL(url)
+
+            const canvas = document.createElement('canvas')
+            canvas.width = img.width
+            canvas.height = img.height
+
+            const ctx = canvas.getContext('2d')
+            if (!ctx) {
+                reject(new Error('Failed to get canvas context'))
+                return
+            }
+
+            ctx.drawImage(img, 0, 0)
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+            const data = imageData.data
+
+            const matrix = type.matrix
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i]
+                const g = data[i + 1]
+                const b = data[i + 2]
+
+                data[i] = Math.min(255, Math.max(0, r * matrix[0][0] + g * matrix[0][1] + b * matrix[0][2]))
+                data[i + 1] = Math.min(255, Math.max(0, r * matrix[1][0] + g * matrix[1][1] + b * matrix[1][2]))
+                data[i + 2] = Math.min(255, Math.max(0, r * matrix[2][0] + g * matrix[2][1] + b * matrix[2][2]))
+            }
+
+            ctx.putImageData(imageData, 0, 0)
+
+            canvas.toBlob(
+                (blob) => {
+                    if (blob) resolve(blob)
+                    else reject(new Error('Failed to create simulated image'))
+                },
+                'image/png'
+            )
+        }
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url)
+            reject(new Error('Failed to load image'))
+        }
+
+        img.src = url
+    })
+}
+
+async function generateAllSimulations(imageFile: File): Promise<Map<string, { blob: Blob; url: string }>> {
+    const newImages = new Map<string, { blob: Blob; url: string }>()
+
+    for (const type of COLOR_BLINDNESS_TYPES) {
+        const blob = await simulateColorBlindness(imageFile, type)
+        newImages.set(type.id, { blob, url: URL.createObjectURL(blob) })
+    }
+
+    return newImages
+}
+
 export default function ColorBlindnessSimulator({ onBack }: ColorBlindnessSimulatorProps) {
     const [file, setFile] = useState<File | null>(null)
     const [preview, setPreview] = useState<string | null>(null)
@@ -105,73 +170,6 @@ export default function ColorBlindnessSimulator({ onBack }: ColorBlindnessSimula
     const [isDragging, setIsDragging] = useState(false)
     const [viewMode, setViewMode] = useState<'single' | 'grid'>('single')
     const fileInputRef = useRef<HTMLInputElement>(null)
-
-    // Apply color blindness simulation
-    const simulateColorBlindness = async (imageFile: File, type: ColorBlindnessType): Promise<Blob> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            const url = URL.createObjectURL(imageFile)
-
-            img.onload = () => {
-                URL.revokeObjectURL(url)
-
-                const canvas = document.createElement('canvas')
-                canvas.width = img.width
-                canvas.height = img.height
-
-                const ctx = canvas.getContext('2d')
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'))
-                    return
-                }
-
-                ctx.drawImage(img, 0, 0)
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-                const data = imageData.data
-
-                const matrix = type.matrix
-
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i]
-                    const g = data[i + 1]
-                    const b = data[i + 2]
-
-                    data[i] = Math.min(255, Math.max(0, r * matrix[0][0] + g * matrix[0][1] + b * matrix[0][2]))
-                    data[i + 1] = Math.min(255, Math.max(0, r * matrix[1][0] + g * matrix[1][1] + b * matrix[1][2]))
-                    data[i + 2] = Math.min(255, Math.max(0, r * matrix[2][0] + g * matrix[2][1] + b * matrix[2][2]))
-                }
-
-                ctx.putImageData(imageData, 0, 0)
-
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob) resolve(blob)
-                        else reject(new Error('Failed to create simulated image'))
-                    },
-                    'image/png'
-                )
-            }
-
-            img.onerror = () => {
-                URL.revokeObjectURL(url)
-                reject(new Error('Failed to load image'))
-            }
-
-            img.src = url
-        })
-    }
-
-    // Generate all simulations
-    const generateAllSimulations = async (imageFile: File) => {
-        const newImages = new Map<string, { blob: Blob; url: string }>()
-
-        for (const type of COLOR_BLINDNESS_TYPES) {
-            const blob = await simulateColorBlindness(imageFile, type)
-            newImages.set(type.id, { blob, url: URL.createObjectURL(blob) })
-        }
-
-        return newImages
-    }
 
     // Handle file selection
     const handleFile = useCallback(async (selectedFile: File) => {

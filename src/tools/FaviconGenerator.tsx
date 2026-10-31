@@ -25,6 +25,62 @@ const FAVICON_SIZES: FaviconSize[] = [
     { size: 512, name: 'android-chrome-512x512.png', description: 'Android splash' }
 ]
 
+function generateFavicon(imageFile: File, size: number): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+        const img = new Image()
+        const url = URL.createObjectURL(imageFile)
+
+        img.onload = () => {
+            URL.revokeObjectURL(url)
+
+            const canvas = document.createElement('canvas')
+            canvas.width = size
+            canvas.height = size
+
+            const ctx = canvas.getContext('2d')
+            if (!ctx) {
+                reject(new Error('Failed to get canvas context'))
+                return
+            }
+
+            ctx.imageSmoothingEnabled = true
+            ctx.imageSmoothingQuality = 'high'
+
+            const minDim = Math.min(img.width, img.height)
+            const sx = (img.width - minDim) / 2
+            const sy = (img.height - minDim) / 2
+
+            ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size)
+
+            canvas.toBlob(
+                (blob) => {
+                    if (blob) resolve(blob)
+                    else reject(new Error('Failed to create favicon'))
+                },
+                'image/png'
+            )
+        }
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url)
+            reject(new Error('Failed to load image'))
+        }
+
+        img.src = url
+    })
+}
+
+async function generateAllFavicons(imageFile: File): Promise<Map<number, { blob: Blob; url: string }>> {
+    const newFavicons = new Map<number, { blob: Blob; url: string }>()
+
+    for (const { size } of FAVICON_SIZES) {
+        const blob = await generateFavicon(imageFile, size)
+        newFavicons.set(size, { blob, url: URL.createObjectURL(blob) })
+    }
+
+    return newFavicons
+}
+
 export default function FaviconGenerator({ onBack }: FaviconGeneratorProps) {
     const [file, setFile] = useState<File | null>(null)
     const [preview, setPreview] = useState<string | null>(null)
@@ -32,66 +88,6 @@ export default function FaviconGenerator({ onBack }: FaviconGeneratorProps) {
     const [isProcessing, setIsProcessing] = useState(false)
     const [isDragging, setIsDragging] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
-
-    // Generate favicon at specific size
-    const generateFavicon = async (imageFile: File, size: number): Promise<Blob> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            const url = URL.createObjectURL(imageFile)
-
-            img.onload = () => {
-                URL.revokeObjectURL(url)
-
-                const canvas = document.createElement('canvas')
-                canvas.width = size
-                canvas.height = size
-
-                const ctx = canvas.getContext('2d')
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'))
-                    return
-                }
-
-                // Draw with high quality scaling
-                ctx.imageSmoothingEnabled = true
-                ctx.imageSmoothingQuality = 'high'
-
-                // Center crop to square
-                const minDim = Math.min(img.width, img.height)
-                const sx = (img.width - minDim) / 2
-                const sy = (img.height - minDim) / 2
-
-                ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size)
-
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob) resolve(blob)
-                        else reject(new Error('Failed to create favicon'))
-                    },
-                    'image/png'
-                )
-            }
-
-            img.onerror = () => {
-                URL.revokeObjectURL(url)
-                reject(new Error('Failed to load image'))
-            }
-
-            img.src = url
-        })
-    }
-
-    // Generate all favicons
-    const generateAllFavicons = async (imageFile: File) => {
-        const newFavicons = new Map<number, { blob: Blob; url: string }>()
-
-        for (const { size } of FAVICON_SIZES) {
-            const blob = await generateFavicon(imageFile, size)
-            newFavicons.set(size, { blob, url: URL.createObjectURL(blob) })
-        }
-
-        return newFavicons
-    }
 
     // Handle file selection
     const handleFile = useCallback(async (selectedFile: File) => {

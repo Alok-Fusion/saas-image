@@ -60,10 +60,16 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
     const canvasRef = useRef<HTMLDivElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const overlayInputRef = useRef<HTMLInputElement>(null)
+    const idCounter = useRef(0)
+
+    const nextId = (prefix: string) => {
+        idCounter.current += 1
+        return `${prefix}-${idCounter.current}`
+    }
 
     // Add text element
     const addText = () => {
-        const id = `text-${Date.now()}`
+        const id = nextId('text')
         const newElement: TextElement = {
             id,
             text: newText,
@@ -80,12 +86,13 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
 
     // Add emoji element
     const addEmoji = (emoji: string) => {
-        const id = `emoji-${Date.now()}`
+        const id = nextId('emoji')
+        const seq = idCounter.current
         const newElement: EmojiElement = {
             id,
             emoji,
-            x: Math.random() * (canvasWidth - 100) + 50,
-            y: Math.random() * (canvasHeight - 100) + 50,
+            x: ((seq * 137) % Math.max(1, canvasWidth - 100)) + 50,
+            y: ((seq * 89) % Math.max(1, canvasHeight - 100)) + 50,
             fontSize: 64,
             rotation: 0
         }
@@ -98,7 +105,7 @@ export default function ThumbnailMaker({ onBack }: ThumbnailMakerProps) {
         const url = URL.createObjectURL(file)
         const img = new Image()
         img.onload = () => {
-            const id = `img-${Date.now()}`
+            const id = nextId('img')
             const scale = Math.min(300 / img.width, 300 / img.height, 1)
             const newElement: ImageElement = {
                 id,

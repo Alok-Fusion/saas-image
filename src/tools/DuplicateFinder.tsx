@@ -17,6 +17,93 @@ interface DuplicateGroup {
     images: ImageWithHash[]
 }
 
+function generateImageHash(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const img = new Image()
+        const url = URL.createObjectURL(file)
+
+        img.onload = () => {
+            URL.revokeObjectURL(url)
+
+            const canvas = document.createElement('canvas')
+            const size = 8
+            canvas.width = size
+            canvas.height = size
+
+            const ctx = canvas.getContext('2d')
+            if (!ctx) {
+                reject(new Error('Failed to get canvas context'))
+                return
+            }
+
+            ctx.drawImage(img, 0, 0, size, size)
+            const imageData = ctx.getImageData(0, 0, size, size)
+            const pixels = imageData.data
+
+            let total = 0
+            const grayscale: number[] = []
+
+            for (let i = 0; i < pixels.length; i += 4) {
+                const gray = pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114
+                grayscale.push(gray)
+                total += gray
+            }
+
+            const average = total / grayscale.length
+            let hash = ''
+            for (const gray of grayscale) {
+                hash += gray >= average ? '1' : '0'
+            }
+
+            resolve(hash)
+        }
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url)
+            reject(new Error('Failed to load image'))
+        }
+
+        img.src = url
+    })
+}
+
+function calculateSimilarity(hash1: string, hash2: string): number {
+    let differences = 0
+    for (let i = 0; i < hash1.length; i++) {
+        if (hash1[i] !== hash2[i]) differences++
+    }
+    return ((hash1.length - differences) / hash1.length) * 100
+}
+
+function findDuplicates(imageList: ImageWithHash[]): DuplicateGroup[] {
+    const groups: DuplicateGroup[] = []
+    const processed = new Set<number>()
+
+    for (let i = 0; i < imageList.length; i++) {
+        if (processed.has(i)) continue
+
+        const group: ImageWithHash[] = [imageList[i]]
+        processed.add(i)
+
+        for (let j = i + 1; j < imageList.length; j++) {
+            if (processed.has(j)) continue
+
+            const similarity = calculateSimilarity(imageList[i].hash, imageList[j].hash)
+
+            if (similarity >= 90) {
+                group.push(imageList[j])
+                processed.add(j)
+            }
+        }
+
+        if (group.length > 1) {
+            groups.push({ hash: imageList[i].hash, images: group })
+        }
+    }
+
+    return groups
+}
+
 export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
     const [images, setImages] = useState<ImageWithHash[]>([])
     const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([])
@@ -24,103 +111,6 @@ export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
     const [isDragging, setIsDragging] = useState(false)
     const [progress, setProgress] = useState(0)
     const fileInputRef = useRef<HTMLInputElement>(null)
-
-    // Generate perceptual hash for an image
-    const generateImageHash = async (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            const url = URL.createObjectURL(file)
-
-            img.onload = () => {
-                URL.revokeObjectURL(url)
-
-                // Create small canvas for hash generation (8x8)
-                const canvas = document.createElement('canvas')
-                const size = 8
-                canvas.width = size
-                canvas.height = size
-
-                const ctx = canvas.getContext('2d')
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'))
-                    return
-                }
-
-                // Draw image to small size
-                ctx.drawImage(img, 0, 0, size, size)
-                const imageData = ctx.getImageData(0, 0, size, size)
-                const pixels = imageData.data
-
-                // Calculate average brightness
-                let total = 0
-                const grayscale: number[] = []
-
-                for (let i = 0; i < pixels.length; i += 4) {
-                    const gray = pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114
-                    grayscale.push(gray)
-                    total += gray
-                }
-
-                const average = total / grayscale.length
-
-                // Generate hash based on whether each pixel is above/below average
-                let hash = ''
-                for (const gray of grayscale) {
-                    hash += gray >= average ? '1' : '0'
-                }
-
-                resolve(hash)
-            }
-
-            img.onerror = () => {
-                URL.revokeObjectURL(url)
-                reject(new Error('Failed to load image'))
-            }
-
-            img.src = url
-        })
-    }
-
-    // Calculate similarity between two hashes (Hamming distance)
-    const calculateSimilarity = (hash1: string, hash2: string): number => {
-        let differences = 0
-        for (let i = 0; i < hash1.length; i++) {
-            if (hash1[i] !== hash2[i]) differences++
-        }
-        return ((hash1.length - differences) / hash1.length) * 100
-    }
-
-    // Find duplicates in the image list
-    const findDuplicates = (imageList: ImageWithHash[]): DuplicateGroup[] => {
-        const groups: DuplicateGroup[] = []
-        const processed = new Set<number>()
-
-        for (let i = 0; i < imageList.length; i++) {
-            if (processed.has(i)) continue
-
-            const group: ImageWithHash[] = [imageList[i]]
-            processed.add(i)
-
-            for (let j = i + 1; j < imageList.length; j++) {
-                if (processed.has(j)) continue
-
-                const similarity = calculateSimilarity(imageList[i].hash, imageList[j].hash)
-
-                // Consider images as duplicates if similarity >= 90%
-                if (similarity >= 90) {
-                    group.push(imageList[j])
-                    processed.add(j)
-                }
-            }
-
-            // Only add to groups if there are duplicates
-            if (group.length > 1) {
-                groups.push({ hash: imageList[i].hash, images: group })
-            }
-        }
-
-        return groups
-    }
 
     // Handle file selection
     const handleFiles = useCallback(async (selectedFiles: FileList) => {

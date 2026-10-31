@@ -64,25 +64,30 @@ export default function ImageCompressor({ onBack }: ImageCompressorProps) {
     useEffect(() => {
         if (!file) return
 
+        let cancelled = false
+
         const processImage = async () => {
             setIsProcessing(true)
             try {
                 const blob = await compressImage(file, quality, format)
+                if (cancelled) return
                 setCompressedBlob(blob)
-
-                if (compressedPreview) {
-                    URL.revokeObjectURL(compressedPreview)
-                }
-                setCompressedPreview(URL.createObjectURL(blob))
+                setCompressedPreview(prev => {
+                    if (prev) URL.revokeObjectURL(prev)
+                    return URL.createObjectURL(blob)
+                })
             } catch (error) {
                 console.error('Error compressing image:', error)
             } finally {
-                setIsProcessing(false)
+                if (!cancelled) setIsProcessing(false)
             }
         }
 
         const debounce = setTimeout(processImage, 300)
-        return () => clearTimeout(debounce)
+        return () => {
+            cancelled = true
+            clearTimeout(debounce)
+        }
     }, [file, quality, format])
 
     // Download compressed image
