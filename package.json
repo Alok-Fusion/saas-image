@@ -7,8 +7,9 @@
         "dev": "vite",
         "build": "vite build",
         "lint": "eslint .",
-        "preview": "vite preview",
-        "postinstall": "node scripts/fix-permissions.js"
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "preview": "vite preview"
     },
     "dependencies": {
         "@imgly/background-removal": "1.7.0",
