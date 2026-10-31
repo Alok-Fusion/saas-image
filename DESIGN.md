@@ -1,237 +1,227 @@
-# ImageKit Pro — Design System & UX Architecture
-
-ImageKit Pro is designed as a calm, precise, professional browser-based creative utility suite inspired by Linear, Raycast, and Figma. Every tool processes 100% locally in the browser with no uploads, zero tracking, and absolute privacy.
-
----
-
-## 1. Design Principles & Aesthetic Direction
-
-1. **Tool, Not Landing Page**: Eliminate flashy gradient hero blobs, oversized emojis, bouncy hover transforms, and generic glassmorphism. Surfaces use precise 1px hairline borders, calm neutral grays, and clear information hierarchy.
-2. **First-Class Dual Themes**: Light (`theme-light`) and Dark (`theme-dark`) designed from ground up with WCAG AA contrast compliance. Persistent in `localStorage` with zero-flash inline bootstrap.
-3. **Monochromatic Neutral Scale + Single Confident Accent**: A single electric indigo accent (`#4f46e5` / `#6366f1`) reserved exclusively for primary calls-to-action, focus indicators, active selection tabs, and slider thumbs.
-4. **Information Density with Precision**: Tabular numerals for numbers and file sizes, self-hosted typography via `@fontsource/geist-sans` and `@fontsource/geist-mono` with `font-display: swap`, and uniform Lucide icons in small tinted icon squares.
-5. **Purposeful Workspace Layout**: Tools replace tall stacked pages with desktop two-column work environments (fixed control rail on the left, expansive canvas on the right) and fluid mobile adaptations.
+# ImageKit Pro — Immersive 3D Experience & Design Architecture
+*Award-level creative engineering specification for ImageKit Pro (Awwwards / FWA standard).*
 
 ---
 
-## 2. Color System & Semantic Tokens
+## 1. Creative Direction & Philosophy
 
-### Dark Theme (`:root[data-theme="dark"]` / system default)
-- **Backgrounds & Surfaces**:
-  - `bg-app`: `#0b0b0e` (Deep obsidian viewport background)
-  - `bg-subtle`: `#121216` (Toolbars, inactive control tracks, canvas wells)
-  - `bg-surface`: `#16161c` (Cards, left control rails, headers)
-  - `bg-surface-elevated`: `#1c1c24` (Command palette, dropdowns, floating modals)
-  - `bg-overlay`: `rgba(11, 11, 14, 0.78)` (Backdrop blur scrim)
-- **Borders & Dividers**:
-  - `border-subtle`: `#1e1e26` (Hairline section dividers)
-  - `border-default`: `#282833` (Card outlines, input borders)
-  - `border-strong`: `#383847` (Active boundaries, hover states)
-- **Text & Foreground**:
-  - `text-primary`: `#f3f3f6` (Primary titles, active labels — contrast 14.8:1)
-  - `text-secondary`: `#9d9da8` (Secondary descriptions, metadata — contrast 6.2:1)
-  - `text-muted`: `#686875` (Placeholders, hotkey hints — contrast 4.6:1)
-  - `text-inverse`: `#0b0b0e` (Text on bright accent buttons)
-- **Accent & Interaction**:
-  - `accent-default`: `#4f46e5` (Electric Indigo)
-  - `accent-hover`: `#6366f1` (Indigo Bright)
-  - `accent-active`: `#4338ca` (Indigo Deep)
-  - `accent-subtle`: `rgba(79, 70, 229, 0.16)` (Icon square tint, badge fills)
-  - `accent-contrast`: `#ffffff`
-  - `focus-ring`: `0 0 0 2px #0b0b0e, 0 0 0 4px #6366f1`
-- **Feedback**:
-  - `success`: `#10b981` / `success-subtle`: `rgba(16, 185, 129, 0.14)`
-  - `warning`: `#f59e0b` / `warning-subtle`: `rgba(245, 158, 11, 0.14)`
-  - `danger`: `#ef4444` / `danger-subtle`: `rgba(239, 68, 68, 0.14)`
+ImageKit Pro unites two opposing worlds:
+1. **The Pure Creative Utility**: 20 zero-compromise, 100% in-browser image tools with absolute privacy (no uploads, no telemetry, no backend).
+2. **The Cinematic Front Door**: An atmospheric, scroll-driven visual journey where visitors experience image transformations directly in interactive 3D before diving into any tool.
 
-### Light Theme (`:root[data-theme="light"]`)
-- **Backgrounds & Surfaces**:
-  - `bg-app`: `#fafafa` (Warm minimal off-white)
-  - `bg-subtle`: `#f3f3f6` (Canvas backgrounds, control tracks)
-  - `bg-surface`: `#ffffff` (Cards, sidebar rail, top header)
-  - `bg-surface-elevated`: `#ffffff` (Elevated modals, command palette)
-  - `bg-overlay`: `rgba(250, 250, 250, 0.82)`
-- **Borders & Dividers**:
-  - `border-subtle`: `#eaeaf0`
-  - `border-default`: `#dfdfe6`
-  - `border-strong`: `#c5c5d2`
-- **Text & Foreground**:
-  - `text-primary`: `#111116` (contrast 16.5:1)
-  - `text-secondary`: `#555562` (contrast 7.1:1)
-  - `text-muted`: `#828290` (contrast 4.7:1)
-  - `text-inverse`: `#ffffff`
-- **Accent & Interaction**:
-  - `accent-default`: `#4f46e5`
-  - `accent-hover`: `#4338ca`
-  - `accent-active`: `#3730a3`
-  - `accent-subtle`: `rgba(79, 70, 229, 0.08)`
-  - `accent-contrast`: `#ffffff`
-  - `focus-ring`: `0 0 0 2px #ffffff, 0 0 0 4px #4f46e5`
+### Design Tone
+- **Confident & Minimal**: Minimal prose, oversized typography, cinematic negative space.
+- **Physicality & Light**: Dark studio stage (`#07070a`), directional rim lighting, volumetric light rays, tactile material physics (roughness, metalness, glass transmission).
+- **Intentional Motion**: No arbitrary bouncy fluff. Every animation is anchored to scroll physics, user intent, or visual metaphor.
+- **Dual Engine Architecture**: WebGL 3D canvas acts as a decorative backdrop (`aria-hidden="true"`), layered beneath an accessible semantic DOM with complete keyboard navigability, screen reader support, and instant low-power fallback.
 
 ---
 
-## 3. Typography Scale & Font System
+## 2. Color Palette & Lighting System
 
-Self-hosted via `@fontsource/geist-sans` and `@fontsource/geist-mono` (no external network hits to Google Fonts).
-
-- **Font Families**:
-  - `var(--font-sans)`: `'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
-  - `var(--font-mono)`: `'Geist Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace`
-- **Type Hierarchy**:
-  - `text-xs`: 11px / 0.75rem | line-height: 1.3 | uppercase track 0.05em (Badges, stats microcopy)
-  - `text-sm`: 13px / 0.8125rem | line-height: 1.4 | standard UI labels, tooltips, secondary text
-  - `text-base`: 14px / 0.875rem | line-height: 1.5 | inputs, primary body, button labels
-  - `text-md`: 16px / 1.0rem | line-height: 1.4 | card titles, group headers
-  - `text-lg`: 18px / 1.125rem | line-height: 1.3 | panel titles, hero subheaders
-  - `text-xl`: 22px / 1.375rem | line-height: 1.25 | tool headers
-  - `text-2xl`: 28px / 1.75rem | line-height: 1.2 | section titles
-  - `text-3xl`: 38px / 2.375rem | line-height: 1.15 | hero primary display
-- **Tabular Numbers**:
-  - Metric counters, coordinate readouts, file size chips, and compression percentages enforce:
-    `font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;`
-
----
-
-## 4. Spacing, Shapes, Shadows & Motion
-
-- **Spacing Scale (4px base)**:
-  `2px`, `4px`, `8px`, `12px`, `16px`, `20px`, `24px`, `32px`, `48px`, `64px`
-- **Radii**:
-  - `radius-sm`: `6px` (badges, small tags)
-  - `radius-md`: `8px` (buttons, inputs, select triggers, slider tracks)
-  - `radius-lg`: `12px` (cards, control panels, dialog windows, dropzones)
-  - `radius-xl`: `16px` (preview containers, canvas viewport)
-  - `radius-full`: `9999px` (pills, switches, circular avatar buttons)
-- **Shadows**:
-  - Dark mode: Almost shadowless, relying on 1px borders (`border-default`) and background surface contrasts. Subtle ambient: `0 4px 20px rgba(0, 0, 0, 0.45)` for elevated popovers.
-  - Light mode: Soft diffuse: `0 1px 3px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.06)` for cards; `0 16px 40px rgba(0, 0, 0, 0.10)` for elevated modals.
-- **Transitions & Motion**:
-  - All transitions standardized at `150ms ease-out` (`cubic-bezier(0.16, 1, 0.3, 1)`).
-  - Explicit `@media (prefers-reduced-motion: reduce)` disables non-essential animations.
-
----
-
-## 5. Component Library & State Matrix
-
-| Component | Variants | States Handled |
+### Primary Canvas Palette
+| Token | Hex | Role |
 | :--- | :--- | :--- |
-| **`Button`** | `primary`, `secondary`, `ghost`, `danger`, `outline` | Default, Hover, Active, Focus-Visible, Disabled, Loading (spinner) |
-| **`IconButton`** | `sm`, `md`, `lg` (in square or rounded frame) | Default, Hover, Focus-Visible, Active / Pressed (`aria-pressed`) |
-| **`Dropzone`** | `full-canvas`, `compact`, `inline` | Idle, Dragging (`is-drag-over`), Checking, Error, Disabled |
-| **`Slider`** | Standard numeric, Range slider | Idle, Hover, Active Drag, Focus-Visible, Tabular readout badge |
-| **`SegmentedControl`** | 2 to 5 options | Inactive, Active (animated / clean pill), Disabled item |
-| **`Select` / `Input`** | Text, Number, Hex color picker | Normal, Hover, Focus, Error, Disabled, Icon prefix / suffix |
-| **`Toggle`** | Checkbox switch | Off, On, Focused, Disabled |
-| **`StatTile`** | Standard metric, Delta comparison (Before vs After) | Plain value, Percentage drop pill, Dimension readout |
-| **`ProgressBar`** | Linear with percentage + stage caption | Indeterminate, Progressing (0-100%), Error stage, Cancel action |
-| **`FileChip`** | Thumbnail icon, Filename, Size, Close button | Queued, Processing, Complete, Failed, Active selection |
-| **`CompareView`** | Split slider (before / after overlay), Side-by-side | Pointer dragging, Touch pan, Keyboard step (ArrowLeft / ArrowRight) |
-| **`CommandPalette`** | Spotlight overlay (Cmd/Ctrl + K) | Open, Searching, Filtered matches, Selected item, Keyboard navigate |
-| **`Toast`** | `success`, `error`, `info` | Slide-in, Auto-dismiss, Manual close, Stacking |
-| **`ThemeToggle`** | Sun / Moon icon switch | System match, Manual override, Transition-safe |
+| `bg-void` | `#07070a` | Deepest background void, cinematic letterbox tone |
+| `bg-studio` | `#0d0d12` | Studio floor & backdrop vignette |
+| `bg-surface-glass` | `rgba(18, 18, 24, 0.72)` | Frosted glass panel backgrounds (`backdrop-filter: blur(16px)`) |
+| `border-glass` | `rgba(255, 255, 255, 0.08)` | 1px hairline card borders catching specular light |
+| `border-focus` | `rgba(212, 255, 58, 0.6)` | Electric lime focus ring highlight |
+| `text-hero` | `#fbfbfd` | Optical display white (98% luminance) |
+| `text-dim` | `#9e9ea8` | Narrative paragraph text (65% luminance) |
+| `text-whisper` | `#585864` | Chapter numbers, coordinates, hotkey chips |
+
+### Electric Accents
+- **Key Electric Accent (Electric Lime)**: `#d4ff3a` — High-energy creative punch for primary triggers, active badges, and particle emissions.
+- **Secondary Accent (Electric Cyan)**: `#00f0ff` — Scan lines, OCR laser sweeps, privacy shield fields.
+- **Warm Glow (Amber Specular)**: `#ff9e3b` — Warm studio rim light on 3D photo layers.
+
+### 3D Lighting Setup (Three.js Studio)
+- **Key Light**: Directional Light (`#ffffff`, intensity: `2.4`), positioned at `[5, 8, 5]`, cast soft shadow.
+- **Rim / Kicker Light**: Directional Light (`#d4ff3a`, intensity: `3.0`), positioned at `[-6, 4, -4]` to outline photo card edges with lime sheen.
+- **Fill Light**: Point Light (`#00f0ff`, intensity: `1.2`), positioned at `[0, -4, 2]` for subtle blue-cyan underfill.
+- **Atmospheric Fog**: Exponential squared fog (`#07070a`, density: `0.035`) ensuring distant objects dissolve naturally into darkness.
 
 ---
 
-## 6. Layout Architecture & Wireframes
+## 3. Typography Scale & Hierarchy
 
-### A. Home Page Wireframe
-```
-+----------------------------------------------------------------------------------------------------+
-|  [✨ ImageKit Pro]    [🔍 Search tools (Ctrl+K)]             [🌓 Theme]  [🔒 100% Private (No upload)] |
-+----------------------------------------------------------------------------------------------------+
-|                                                                                                    |
-|                                Fast, Private Image Tools                                            |
-|                  20 free browser-based utilities. Zero server uploads, ever.                       |
-|                                                                                                    |
-|            +-------------------------------------------------------------------------+             |
-|            | 🔍 Search all 20 image tools...                              [ Ctrl+K ] |             |
-|            +-------------------------------------------------------------------------+             |
-|                                                                                                    |
-|      [ Quick Start ]                                                                               |
-|      +---------------------------+ +---------------------------+ +-------------------------------+ |
-|      | 📦 Compress Image         | | 🎭 Remove Background      | | 📱 Social Media Resizer       | |
-|      | Reduce size, keep quality | | Instant AI isolation      | | Presets for Instagram & X     | |
-|      +---------------------------+ +---------------------------+ +-------------------------------+ |
-|                                                                                                    |
-|   + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -+   |
-|   :  📂 Drop any image here to instantly choose a tool (Compress, Resize, Crop, BG Remover...) :   |
-|   + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -+   |
-|                                                                                                    |
-|   [⭐ Favorites (2)]                 [🕐 Recently Used (3)]                                         |
-|                                                                                                    |
-|   CATEGORIES: [All (20)]  [Core (3)]  [Edit (4)]  [PDF (2)]  [Privacy (3)]  [Design (4)]  ...      |
-|                                                                                                    |
-|   +-----------------------+ +-----------------------+ +-----------------------+ +----------------+ |
-|   | [Icon] Tool Name      | | [Icon] Tool Name      | | [Icon] Tool Name      | | ...            | |
-|   | Description line      | | Description line      | | Description line      | |                | |
-|   | [★]                   | | [★]                   | | [★]             [NEW] | |                | |
-|   +-----------------------+ +-----------------------+ +-----------------------+ +----------------+ |
-|                                                                                                    |
-|   Footer: © 2026 ImageKit Pro · Client-side privacy guaranteed · MIT License · Alok Kushwaha       |
-+----------------------------------------------------------------------------------------------------+
+### Fonts
+1. **Display Face**: `Instrument Serif` (Italic & Regular via `@fontsource/instrument-serif`) — Sculptural, literary, and high-fashion editorial contrast.
+2. **Interface Sans**: `Geist Sans` (via `@fontsource/geist-sans`) — Razor-sharp geometric legibility for controls, tabs, and toolbars.
+3. **Data Mono**: `Geist Mono` (via `@fontsource/geist-mono`) — Tabular figures for file sizes, dimensions, percentages, and chapter markers.
+
+### Type Hierarchy
+| Level | Font | Size (Clamp) | Tracking | Leading | Role |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Headline Hero** | Instrument Serif | `clamp(56px, 9vw, 150px)` | `-0.03em` | `0.92` | "Raw power. Zero trace." |
+| **Chapter Title** | Instrument Serif | `clamp(40px, 6vw, 96px)` | `-0.02em` | `0.98` | Chapter headlines |
+| **Numeral Index** | Geist Mono | `clamp(18px, 2.5vw, 36px)` | `0.1em` | `1.0` | `01`, `02`, `07` |
+| **Body Narrative** | Geist Sans | `clamp(15px, 1.2vw, 18px)` | `-0.01em` | `1.6` | Narrative subtitles |
+| **Button / Chip** | Geist Sans | `13px` / `14px` | `0.02em` | `1.2` | Action triggers, badges |
+| **Metric Telemetry**| Geist Mono | `13px` | `0.04em` | `1.0` | `8.4 MB → 640 KB` |
+
+---
+
+## 4. Motion Choreography & Named Physics
+
+All kinetic motion adheres to three physics models:
+
+```css
+/* Named Cubic-Bezier Easings */
+--ease-cinematic: cubic-bezier(0.16, 1, 0.3, 1);    /* Smooth camera & page wipes */
+--ease-snappy: cubic-bezier(0.25, 1, 0.5, 1);       /* Cursor rings, card pulls */
+--ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);  /* Badge snaps, drop triggers */
 ```
 
-### B. Single-File Tool Wireframe (Desktop Workspace Layout >= 1024px)
+### Durations & Scrubbing
+- **Smooth Scroll (Lenis)**: `lerp: 0.08`, `duration: 1.2s`, `wheelMultiplier: 0.9`. Respects touch inertia and OS trackpads.
+- **ScrollTrigger Timelines**: 100% scrubbed against viewport progress (`scrub: 0.8`), ensuring bidirectional perfection (scrolling up reverses the animation identically).
+- **Page Route Transitions**: `600ms` full-screen dual-tone shutter curtain (`#0d0d12` sliding over `#d4ff3a` hairline).
+- **Hover Micro-interactions**: `180ms --ease-snappy` for cursor growth, letter rolling, and button magnetics.
+
+---
+
+## 5. Chapter-by-Chapter Storyboard
+
+### Chapter 00: Opening & Hero (0 to 100% Preloader → Studio Rise)
+- **Visual**: Minimal progress line across bottom (0% → 100%), with monospace counter ticking up. Resolves within 400ms if assets are ready, capped strictly at 1.5s.
+- **Transition**: Line expands into full-width razor wire, text fades in via masked vertical rise (`transform: translateY(100%) → translateY(0%)`).
+- **3D Scene**: Three high-resolution floating image planes hover in perspective with gentle multi-axis harmonic drift (`sin(t * 0.8)`). Cursor position creates reactive 3D tilt. A volumetric pixel dust cloud (1,200 particle instances) floats in the background.
+- **Call-to-Action**: "Explore 20 Tools" pill button with magnetic pull + subtle "Scroll to inspect" mouse icon.
+
+### Chapter 01: Squeeze (Image Compression)
+- **Visual Metaphor**: The 3 photo planes coalesce into one, then compress violently inward along the Z and X axes into a dense, solid, crystalline block.
+- **Telemetry**: Monospace telemetry HUD animates from `8.4 MB` countdown to `640 KB` (`-92.4%`).
+- **Particles**: Compressed pixel dust explodes outward in ring geometry as the compression reaches maximum density.
+- **Action**: "Open Image Compressor →" routes directly to `/compress-image`.
+
+### Chapter 02: Framing (Smart Crop & Aspect Morph)
+- **Visual Metaphor**: Four illuminated golden corner crop reticles slide from the edges and snap onto the image plane.
+- **Morphing**: The image plane aspect ratio morphs seamlessly through standard formats: `1:1 (Square)` → `16:9 (Landscape)` → `9:16 (Story)`. The crop reticles track vertex coordinates in real time.
+- **Action**: "Open Image Cropper →" routes to `/crop-image`.
+
+### Chapter 03: Separation (Background Removal)
+- **Visual Metaphor**: The foreground subject elevates forward on the Z-axis (+2.0 units) into crisp silhouette focus.
+- **Dissolve**: The background plate breaks down into an alpha noise grid, dissolving into floating holographic particles that scatter into the void.
+- **Action**: "Open Background Remover →" routes to `/remove-background`.
+
+### Chapter 04: Synthesis (Image to PDF & Multi-page Binder)
+- **Visual Metaphor**: Multiple scattered photo plates fly into a neat vertical stack. A paper fold distortion bends the sheets, binding them into an elegant 3D PDF document folio that flips its cover toward the viewer.
+- **Action**: "Open Image to PDF →" routes to `/image-to-pdf`.
+
+### Chapter 05: Inscription (OCR Text Extraction)
+- **Visual Metaphor**: A glowing horizontal laser beam (electric cyan) sweeps vertically across the image document.
+- **Typographic Flight**: As the beam scans pixels, 3D extruded monospace characters (`A`, `9`, `&`, `K`, `0`) detach from the surface, fly toward the camera, and assemble into formatted digital text strings.
+- **Action**: "Open OCR Extractor →" routes to `/extract-text`.
+
+### Chapter 06: Zero-Knowledge (EXIF Sanitization & Privacy)
+- **Visual Metaphor**: Floating metadata badges (`GPS: 37.7749° N`, `Camera: Sony A7R IV`, `Date: 2026:10:31`) hover around the photo. An iridescent spherical forcefield envelopes the photo plane; the metadata tags peel off like burnt foil and disintegrate into thin smoke.
+- **Headline**: *"Nothing leaves your machine. Ever."*
+- **Action**: "Open EXIF Cleaner →" routes to `/clean-exif`.
+
+### Chapter 07: Manifestation (3D Device Mockups)
+- **Visual Metaphor**: A photorealistic extruded 3D smartphone frame (iPhone vector geometry) sweeps into center view. The processed image snaps perfectly onto its OLED glass display. The phone rotates 45 degrees along the Y-axis to showcase bezel reflections and real-time shadows.
+- **Action**: "Open Mockup Generator →" routes to `/device-mockup`.
+
+### Chapter 08: The Constellation (3D Tool Galaxy & Accessible Grid)
+- **Visual Metaphor**: The camera accelerates backward (`z: 5 → 24`), revealing all 20 tools as an interactive constellation of 3D floating glass cards arranged in a curved cylindrical amphitheater.
+- **Interaction**: Cursor hover pulls the target tool tile forward with specular highlight and dims non-hovered tiles. Clicking initiates a camera zoom into the tile and triggers the page transition into the tool.
+- **Semantic Twin**: A fully accessible, screen-reader friendly HTML filterable grid with keyboard navigation, search bar, and Cmd/Ctrl+K command palette is integrated directly below.
+
+---
+
+## 6. ASCII Wireframes
+
+### 6.1 Hero Section
 ```
-+----------------------------------------------------------------------------------------------------+
-|  [← All Tools]  [📦] Image Compressor  [▼ Switch tool]                           [↺ Reset]  [🌓 Theme] |
-+------------------------------------+---------------------------------------------------------------+
-| LEFT CONTROL RAIL (340px)          | MAIN WORKSPACE CANVAS                                         |
-|                                    |                                                               |
-| [ File: hero-banner.png  2.4 MB ]  | +-----------------------------------------------------------+ |
-| [ Dimensions: 2400 × 1600 px    ]  | |                                                           | |
-| ---------------------------------- | |                   TRANSPARENT CHECKERBOARD                | |
-| Format                             | |                                                           | |
-| [ Auto (Original) | WEBP | JPEG ]  | |                    [ Image Preview Area ]                 | |
-|                                    | |                                                           | |
-| Quality: 85%                       | |           [🔍 -]  [ Fit ]  [ 100% ]  [🔍 +]             | |
-| [========●-----------------]       | |                                                           | |
-|                                    | +-----------------------------------------------------------+ |
-| Advanced Options                   |                                                               |
-| [x] Max width limit: [ 1920 ] px   | BOTTOM WORKSPACE ACTION BAR                                   |
-| [ ] Strip EXIF metadata            | +-----------------------------------------------------------+ |
-|                                    | | Stats: 2.4 MB -> 480 KB (-80%) | 1920x1280                   | |
-|                                    | | [🚀 Compress Image]         [💾 Download WebP (480 KB)]    | |
-|                                    | +-----------------------------------------------------------+ |
-|                                    |                                                               |
-|                                    | Chaining: [Open in Resizer →]  [Open in Watermark →]          |
-+------------------------------------+---------------------------------------------------------------+
++-----------------------------------------------------------------------+
+| [IK] IMAGEKIT PRO            [Cmd+K Search]   [Reduce FX] [Theme]     |
+|-----------------------------------------------------------------------|
+|                                                                       |
+|     ( 3D VOLUMETRIC SCENE: Floating Photo Stack + Pixel Dust )        |
+|                                                                       |
+|                     Raw power. Zero trace.                            |
+|             20 studio image tools running 100% in your browser.       |
+|                                                                       |
+|                 [ Explore All Tools ]     (↓ Scroll)                  |
+|                                                                       |
+| [======================================] 100% PRIVATE CLIENT-SIDE    |
++-----------------------------------------------------------------------+
 ```
 
-### C. Multi-File Tool Wireframe (e.g. Image to PDF, Duplicate Finder)
+### 6.2 Scroll Chapter Layout (Pinned Viewport)
 ```
-+----------------------------------------------------------------------------------------------------+
-|  [← All Tools]  [📄] Image to PDF  [▼ Switch tool]                               [↺ Reset]  [🌓 Theme] |
-+------------------------------------+---------------------------------------------------------------+
-| LEFT CONTROL RAIL (340px)          | MAIN WORKSPACE CANVAS                                         |
-|                                    |                                                               |
-| Page Setup                         | [ Drag to reorder 4 images ]                  [+ Add Images]  |
-| Orientation: [Portrait|Landscape]  | +-----------+  +-----------+  +-----------+  +-----------+    |
-| Margin:      [None | Normal ]      | | 1         |  | 2         |  | 3         |  | 4         |    |
-| Fit Mode:    [Contain|Cover ]      | | [Thumb 1] |  | [Thumb 2] |  | [Thumb 3] |  | [Thumb 4] |    |
-|                                    | | page-1.png|  | page-2.png|  | chart.jpg |  | end.png   |    |
-| Document Name                      | | 800 KB    |  | 1.1 MB    |  | 420 KB    |  | 980 KB    |    |
-| [ document.pdf                 ]   | | [x]       |  | [x]       |  | [x]       |  | [x]       |    |
-|                                    | +-----------+  +-----------+  +-----------+  +-----------+    |
-|                                    |                                                               |
-|                                    | BOTTOM WORKSPACE ACTION BAR                                   |
-|                                    | +-----------------------------------------------------------+ |
-|                                    | | 4 pages ready | Est. 3.2 MB total PDF                       | |
-|                                    | |                              [📄 Generate & Download PDF]  | |
-|                                    | +-----------------------------------------------------------+ |
-+------------------------------------+---------------------------------------------------------------+
++-----------------------------------------------------------------------+
+| (01/07)                                                               |
+|                                                                       |
+|  01                                                                   |
+|  INSTANT                                                              |
+|  SQUEEZE.             +-------------------------------+               |
+|                       |   [3D Interactive Canvas]     |               |
+|  8.4 MB → 640 KB      |   Photo compressing into      |   o (01)      |
+|  No artifacting.      |   dense crystal cube with     |   . (02)      |
+|                       |   bursting pixel dust         |   . (03)      |
+|  [Open Compressor →]  |                               |   . (04)      |
+|                       +-------------------------------+               |
+|                                                                       |
++-----------------------------------------------------------------------+
+```
+
+### 6.3 Tool Field (Constellation / Grid)
+```
++-----------------------------------------------------------------------+
+|  THE SUITE                                                            |
+|  20 precision tools. Select any to begin.                             |
+|  [All] [Essentials] [Edit] [PDF] [Privacy] [Design] [Social]          |
+|                                                                       |
+|  +--------------------+  +--------------------+  +-----------------+  |
+|  | [Icon] Compressor  |  | [Icon] Resizer     |  | [Icon] Remover  |  |
+|  | Shrink JPEG/PNG    |  | Scale any preset   |  | AI cutout       |  |
+|  +--------------------+  +--------------------+  +-----------------+  |
+|  +--------------------+  +--------------------+  +-----------------+  |
+|  | [Icon] Cropper     |  | [Icon] PDF to Img  |  | [Icon] Inpaint  |  |
+|  | Aspect lock crops  |  | Convert PDF pages  |  | Erase watermarks|  |
+|  +--------------------+  +--------------------+  +-----------------+  |
++-----------------------------------------------------------------------+
+```
+
+### 6.4 Tool Workspace Page
+```
++-----------------------------------------------------------------------+
+| [← Home] [Icon] Image Compressor        [Chain To...] [Reset]         |
+|-----------------------------------------------------------------------|
+| CONTROL RAIL (340px)        | CENTER WORKSPACE CANVAS                 |
+|                             |                                         |
+| File: photo-sample.jpg      | +-------------------------------------+ |
+| Original: 3840x2160 (4.2 MB)| |                                     | |
+| Target:   WebP @ 82%        | |   [ Checkerboard Stage with Zoom ]  | |
+|                             | |                                     | |
+| [Quality Slider: 82%]       | |   [ Before / After Compare Split ]  | |
+| [Format: WebP | PNG | JPG]  | |                                     | |
+|                             | +-------------------------------------+ |
+| Savings: -78% (920 KB)      |                                         |
+|-----------------------------------------------------------------------|
+| [ + Drop New Image ]        | [ Reset Canvas ]   [ Download Output ]  |
++-----------------------------------------------------------------------+
 ```
 
 ---
 
-## 7. Migration & Modular CSS Architecture
+## 7. Performance Budgets & Resilience
 
-The legacy monolithic `src/index.css` is refactored into clean, scoped modules:
-1. `src/styles/tokens.css`: All theme color variables, surface levels, typography tokens, radius and spacing.
-2. `src/styles/base.css`: CSS reset, font-face declarations, dark/light html tags, focus-visible baseline.
-3. `src/styles/layout.css`: AppShell grid, top header, home hero, tools grid, footer, responsive breakpoints.
-4. `src/styles/components.css`: Buttons, sliders, segmented controls, inputs, dropdowns, StatTiles, command palette, toast.
-5. `src/styles/workspace.css`: Left control rail, center checkerboard canvas, bottom action bar, zoom/pan controls.
-6. `src/styles/tools.css`: Specialized tool widgets (cropper handles, comparison slider handle, color palette chips, favicon grid, etc.).
-
-All tool processing logic, Web Worker APIs, file intake validations, and hash-redirects are strictly preserved.
+1. **Strict Fallback Triggers**:
+   - WebGL context creation failure
+   - Low hardware concurrency (`navigator.hardwareConcurrency < 4`)
+   - Low device memory (`navigator.deviceMemory < 4`)
+   - User preference `prefers-reduced-motion: reduce`
+   - User clicks `Reduce effects` toggle (persisted in `localStorage`)
+   - Mobile screen width `< 768px`
+2. **Fallback Behavior**:
+   - Zero WebGL instances initialized.
+   - 3D canvas replaced with high-fidelity static layered illustrations with CSS parallax.
+   - Lenis smooth scroll disabled; native scroll preserved.
+3. **Resource Management**:
+   - Frameloop set to `demand` when viewport is idle.
+   - WebGL canvas unmounted / disposed during tool view active state to dedicate 100% of GPU/CPU resources to image processing algorithms (ONNX, Tesseract, Canvas 2D).
+   - Single global WebGL context (`WebGLRenderer.dispose()` cleanly on exit).
