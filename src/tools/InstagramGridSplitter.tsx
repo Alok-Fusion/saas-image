@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Archive, Download, Grid, RotateCcw, Scissors } from 'lucide-react'
+import Button from '../components/Button'
+import ControlGroup from '../components/ControlGroup'
 import Dropzone from '../components/Dropzone'
+import FileChip from '../components/FileChip'
+import SegmentedControl from '../components/SegmentedControl'
+import StatTile from '../components/StatTile'
+import ToolHeader from '../components/ToolHeader'
 import { useToast } from '../components/Toast'
+import WorkspaceLayout from '../components/WorkspaceLayout'
 import { useObjectUrl } from '../hooks/useObjectUrl'
-import { canvasToBlob, downloadBlob, loadImage } from '../utils/imageProcessing'
+import { canvasToBlob, downloadBlob, getImageInfo, loadImage, type ImageInfo } from '../utils/imageProcessing'
+import { createSampleImage } from '../utils/sampleImage'
 
 interface InstagramGridSplitterProps {
     onBack: () => void
+    initialFile?: File | null
 }
 
 type GridType = '3x1' | '3x2' | '3x3'
@@ -17,13 +27,61 @@ interface GridTile {
     url: string
 }
 
-export default function InstagramGridSplitter({ onBack }: InstagramGridSplitterProps) {
-    const [file, setFile] = useState<File | null>(null)
+const GRID_OPTIONS = [
+    { value: '3x1', label: '3×1 (Banner)' },
+    { value: '3x2', label: '3×2 (6-Grid)' },
+    { value: '3x3', label: '3×3 (9-Grid)' },
+]
+
+export default function InstagramGridSplitter({ onBack, initialFile }: InstagramGridSplitterProps) {
+    const [file, setFile] = useState<File | null>(() => initialFile ?? null)
+    const [prevInitialFile, setPrevInitialFile] = useState<File | null>(initialFile ?? null)
+    const [originalInfo, setOriginalInfo] = useState<ImageInfo | null>(null)
     const [gridType, setGridType] = useState<GridType>('3x3')
     const [tiles, setTiles] = useState<GridTile[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
+    const preview = useObjectUrl(file)
+    const tilesRef = useRef<GridTile[]>([])
+    const { error, success } = useToast()
 
-    // Get grid dimensions
+    const clearTiles = useCallback(() => {
+        tilesRef.current.forEach((tile) => URL.revokeObjectURL(tile.url))
+        tilesRef.current = []
+        setTiles([])
+    }, [])
+
+    if (initialFile && initialFile !== prevInitialFile) {
+        setPrevInitialFile(initialFile)
+        setFile(initialFile)
+        setTiles([])
+    }
+
+    const handleFile = useCallback((selectedFile: File) => {
+        setFile(selectedFile)
+        clearTiles()
+    }, [clearTiles])
+
+    useEffect(() => {
+        if (!file) return
+        let cancelled = false
+        void getImageInfo(file)
+            .then((info) => {
+                if (cancelled) return
+                setOriginalInfo(info)
+            })
+            .catch(() => {
+                if (cancelled) return
+                setOriginalInfo(null)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [file])
+
+    useEffect(() => () => {
+        tilesRef.current.forEach((tile) => URL.revokeObjectURL(tile.url))
+    }, [])
+
     const getGridDimensions = (type: GridType): [number, number] => {
         switch (type) {
             case '3x1': return [3, 1]
@@ -32,19 +90,6 @@ export default function InstagramGridSplitter({ onBack }: InstagramGridSplitterP
             default: return [3, 3]
         }
     }
-
-    const preview = useObjectUrl(file)
-    const tilesRef = useRef<GridTile[]>([])
-    const { error, success } = useToast()
-
-    const clearTiles = () => {
-        tilesRef.current.forEach((tile) => URL.revokeObjectURL(tile.url))
-        setTiles([])
-    }
-
-    useEffect(() => () => {
-        tilesRef.current.forEach((tile) => URL.revokeObjectURL(tile.url))
-    }, [])
 
     const splitImage = async (imageFile: File, type: GridType): Promise<GridTile[]> => {
         const img = await loadImage(imageFile)
@@ -113,11 +158,6 @@ export default function InstagramGridSplitter({ onBack }: InstagramGridSplitterP
         return `${baseName}-tile-${tile.row * cols + tile.col + 1}.jpg`
     }
 
-    const handleFile = useCallback((selectedFile: File) => {
-        setFile(selectedFile)
-        clearTiles()
-    }, [])
-
     const handleGenerate = async () => {
         if (!file) return
         setIsProcessing(true)
@@ -126,6 +166,7 @@ export default function InstagramGridSplitter({ onBack }: InstagramGridSplitterP
             const newTiles = await splitImage(file, gridType)
             tilesRef.current = newTiles
             setTiles(newTiles)
+            success(`Split image into ${newTiles.length} tiles`)
         } catch (err) {
             error(err instanceof Error ? err.message : 'Could not split the image')
         } finally {
@@ -133,13 +174,14 @@ export default function InstagramGridSplitter({ onBack }: InstagramGridSplitterP
         }
     }
 
-    const handleGridTypeChange = async (type: GridType) => {
-        setGridType(type)
+    const handleGridTypeChange = async (type: string) => {
+        const gType = type as GridType
+        setGridType(gType)
         if (file && tiles.length > 0) {
             setIsProcessing(true)
             try {
                 clearTiles()
-                const newTiles = await splitImage(file, type)
+                const newTiles = await splitImage(file, gType)
                 tilesRef.current = newTiles
                 setTiles(newTiles)
             } catch (err) {
@@ -161,7 +203,7 @@ export default function InstagramGridSplitter({ onBack }: InstagramGridSplitterP
             }
             const content = await zip.generateAsync({ type: 'blob' })
             downloadBlob(content, `${baseName}-instagram-grid.zip`)
-            success('Downloaded grid ZIP')
+            success('Downloaded grid archive (.zip)')
         } catch (err) {
             error(err instanceof Error ? err.message : 'Could not build the ZIP')
         }
@@ -174,170 +216,199 @@ export default function InstagramGridSplitter({ onBack }: InstagramGridSplitterP
     const handleReset = () => {
         clearTiles()
         setFile(null)
+        setOriginalInfo(null)
     }
 
     const [cols, rows] = getGridDimensions(gridType)
 
-    return (
-        <div className="tool-page">
-            <div className="tool-header">
-                <button className="back-button" onClick={onBack}>←</button>
-                <h1 className="tool-title">Instagram Grid Splitter</h1>
+    const leftControls = (
+        <>
+            {file && (
+                <ControlGroup label="Source Image">
+                    <FileChip
+                        name={file.name}
+                        sizeBytes={file.size}
+                        width={originalInfo?.width}
+                        height={originalInfo?.height}
+                        thumbnailUrl={preview || undefined}
+                        onRemove={handleReset}
+                    />
+                </ControlGroup>
+            )}
+
+            <ControlGroup
+                label="Grid Layout"
+                hint="3×3 creates a complete profile takeover (9 square tiles)"
+            >
+                <SegmentedControl
+                    value={gridType}
+                    onChange={(val) => void handleGridTypeChange(val)}
+                    options={GRID_OPTIONS}
+                />
+            </ControlGroup>
+
+            <ControlGroup label="Instagram Standard" hint="Each tile is generated at exact 1080×1080 px with no compression artifacts">
+                <div className="stat-tile">
+                    <span className="stat-tile-label">Tile Resolution</span>
+                    <span className="stat-tile-value">1080 × 1080 px</span>
+                </div>
+            </ControlGroup>
+        </>
+    )
+
+    const centerCanvas = !file ? (
+        <Dropzone
+            onFiles={(files) => handleFile(files[0])}
+            icon="grid"
+            title="Drop image to split for Instagram"
+            hint="Create 3x1 banners, 3x2 grids, or 3x3 profile grids"
+            onTrySample={async () => {
+                const s = await createSampleImage()
+                handleFile(s)
+            }}
+        />
+    ) : tiles.length === 0 ? (
+        <div style={{ textAlign: 'center', maxWidth: '700px', width: '100%' }}>
+            <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
+                <img
+                    src={preview || undefined}
+                    alt="Source preview"
+                    style={{
+                        maxHeight: '60vh',
+                        maxWidth: '100%',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-border-subtle)',
+                        display: 'block',
+                    }}
+                />
+            </div>
+            <p style={{ marginTop: 'var(--spacing-3)', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                Click "Split Image" to carve this into {cols * rows} Instagram squares.
+            </p>
+        </div>
+    ) : (
+        <div style={{ maxWidth: '640px', width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+            <div
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                    gap: '4px',
+                    padding: '4px',
+                    backgroundColor: 'var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                }}
+            >
+                {tiles.map((tile, idx) => (
+                    <div
+                        key={idx}
+                        style={{
+                            position: 'relative',
+                            aspectRatio: '1',
+                            overflow: 'hidden',
+                            borderRadius: '2px',
+                        }}
+                    >
+                        <img
+                            src={tile.url}
+                            alt={`Tile ${idx + 1}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                        <span
+                            style={{
+                                position: 'absolute',
+                                top: 4,
+                                left: 4,
+                                backgroundColor: 'rgba(0,0,0,0.65)',
+                                color: '#ffffff',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                padding: '2px 6px',
+                                borderRadius: '2px',
+                                fontFamily: 'var(--font-mono)',
+                            }}
+                        >
+                            #{idx + 1}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => handleDownloadTile(tile)}
+                            style={{
+                                position: 'absolute',
+                                bottom: 4,
+                                right: 4,
+                                backgroundColor: 'rgba(0,0,0,0.65)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '24px',
+                                height: '24px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                            }}
+                            title={`Download tile #${idx + 1}`}
+                        >
+                            <Download size={12} />
+                        </button>
+                    </div>
+                ))}
+            </div>
+            <p style={{ margin: 0, textAlign: 'center', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                💡 Posting tip: On Instagram, post the tiles in reverse order (Tile #{tiles.length} first, then #{tiles.length - 1} ... down to Tile #1 last).
+            </p>
+        </div>
+    )
+
+    const bottomBar = (
+        <>
+            <div style={{ display: 'flex', gap: 'var(--spacing-3)' }}>
+                <StatTile label="Layout" value={`${cols} × ${rows}`} />
+                <StatTile label="Total Tiles" value={cols * rows} />
+                <StatTile label="Tile Size" value="1080px" />
             </div>
 
-            {!file ? (
-                <Dropzone
-                    onFiles={(files) => handleFile(files[0])}
-                    icon="📱"
-                    title="Drop your image here or click to browse"
-                    hint="Split images into grids for Instagram carousel posts"
-                />
-            ) : tiles.length === 0 ? (
-                <>
-                    {/* Preview with grid overlay */}
-                    <div className="image-preview-container">
-                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                            {preview && <img src={preview} alt="Preview" className="image-preview" />}
-                            <div style={{
-                                position: 'absolute',
-                                inset: 0,
-                                display: 'grid',
-                                gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                                gridTemplateRows: `repeat(${rows}, 1fr)`,
-                                pointerEvents: 'none'
-                            }}>
-                                {Array.from({ length: cols * rows }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        style={{
-                                            border: '2px dashed rgba(255,255,255,0.5)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            color: 'white',
-                                            fontSize: '1.5rem',
-                                            fontWeight: 'bold',
-                                            textShadow: '0 2px 4px rgba(0,0,0,0.5)'
-                                        }}
-                                    >
-                                        {i + 1}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+            <div className="workspace-action-group">
+                <Button variant="ghost" onClick={handleReset} icon={<RotateCcw size={15} />}>
+                    Reset
+                </Button>
+                {tiles.length === 0 ? (
+                    <Button
+                        variant="primary"
+                        onClick={() => void handleGenerate()}
+                        isLoading={isProcessing}
+                        icon={<Scissors size={15} />}
+                    >
+                        Split Image
+                    </Button>
+                ) : (
+                    <Button
+                        variant="primary"
+                        onClick={() => void handleDownloadAll()}
+                        icon={<Archive size={15} />}
+                    >
+                        Download All Tiles (ZIP)
+                    </Button>
+                )}
+            </div>
+        </>
+    )
 
-                    {/* Grid Type Selection */}
-                    <div className="controls-panel" style={{ marginTop: '1.5rem' }}>
-                        <div className="control-group">
-                            <label className="control-label">
-                                <span>Grid Layout</span>
-                            </label>
-                            <div className="select-buttons">
-                                <button
-                                    className={`select-button ${gridType === '3x1' ? 'active' : ''}`}
-                                    onClick={() => handleGridTypeChange('3x1')}
-                                >
-                                    3×1 (Panorama)
-                                </button>
-                                <button
-                                    className={`select-button ${gridType === '3x2' ? 'active' : ''}`}
-                                    onClick={() => handleGridTypeChange('3x2')}
-                                >
-                                    3×2 (6 tiles)
-                                </button>
-                                <button
-                                    className={`select-button ${gridType === '3x3' ? 'active' : ''}`}
-                                    onClick={() => handleGridTypeChange('3x3')}
-                                >
-                                    3×3 (9 tiles)
-                                </button>
-                            </div>
-                        </div>
-
-                        <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '12px' }}>
-                            <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.7)' }}>
-                                📌 Tiles are numbered in Instagram posting order. Upload them from #1 to #{cols * rows} for perfect alignment.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="actions-bar">
-                        <button className="secondary-button" onClick={handleReset}>
-                            🔄 Upload New Image
-                        </button>
-                        <button
-                            className="download-button"
-                            onClick={handleGenerate}
-                            disabled={isProcessing}
-                        >
-                            {isProcessing ? '⏳ Processing...' : `✂️ Split into ${cols * rows} Tiles`}
-                        </button>
-                    </div>
-                </>
-            ) : (
-                <>
-                    {/* Grid Preview */}
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                        gap: '0.5rem',
-                        maxWidth: '600px',
-                        margin: '0 auto'
-                    }}>
-                        {tiles.map((tile, index) => (
-                            <div
-                                key={index}
-                                className="result-card"
-                                style={{ padding: '0.5rem', cursor: 'pointer' }}
-                                onClick={() => handleDownloadTile(tile)}
-                            >
-                                <img
-                                    src={tile.url}
-                                    alt={`Tile ${index + 1}`}
-                                    style={{ width: '100%', borderRadius: '8px' }}
-                                />
-                                <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
-                                    #{index + 1}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div style={{
-                        marginTop: '1.5rem',
-                        textAlign: 'center',
-                        padding: '1rem',
-                        background: 'rgba(56, 239, 125, 0.1)',
-                        borderRadius: '12px'
-                    }}>
-                        <p style={{ color: '#38ef7d', fontSize: '0.9rem' }}>
-                            ✅ Post tiles from #1 to #{tiles.length} on Instagram for perfect grid alignment!
-                        </p>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="actions-bar">
-                        <button className="secondary-button" onClick={handleReset}>
-                            🔄 Start Over
-                        </button>
-                        <button className="download-button" onClick={handleDownloadAll}>
-                            📦 Download All as ZIP
-                        </button>
-                    </div>
-                </>
-            )}
-
-            {/* Processing Overlay */}
-            {isProcessing && (
-                <div className="processing-overlay">
-                    <div className="processing-content">
-                        <div className="processing-spinner" />
-                        <div className="processing-text">Splitting Image...</div>
-                    </div>
-                </div>
-            )}
+    return (
+        <div className="tool-view-wrapper">
+            <ToolHeader
+                toolName="Instagram Grid Splitter"
+                toolIcon={<Grid size={18} />}
+                toolId="instagram-grid"
+                onBack={onBack}
+                onReset={file ? handleReset : undefined}
+            />
+            <WorkspaceLayout
+                leftControls={leftControls}
+                centerCanvas={centerCanvas}
+                bottomBar={bottomBar}
+                hasFile={!!file}
+            />
         </div>
     )
 }

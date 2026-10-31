@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Download, FileText, RotateCcw, Trash2 } from 'lucide-react'
+import Button from '../components/Button'
+import ControlGroup from '../components/ControlGroup'
 import Dropzone from '../components/Dropzone'
+import ProgressBar from '../components/ProgressBar'
+import SegmentedControl from '../components/SegmentedControl'
+import Slider from '../components/Slider'
+import StatTile from '../components/StatTile'
+import ToolHeader from '../components/ToolHeader'
 import { useToast } from '../components/Toast'
+import WorkspaceLayout from '../components/WorkspaceLayout'
 import {
     buildOutputName,
     formatFileSize,
@@ -8,9 +17,11 @@ import {
     loadImage,
     type ImageInfo,
 } from '../utils/imageProcessing'
+import { createSampleImage } from '../utils/sampleImage'
 
 interface ImageToPdfProps {
     onBack: () => void
+    initialFile?: File | null
 }
 
 interface ImageFile {
@@ -19,7 +30,18 @@ interface ImageFile {
     info: ImageInfo
 }
 
-export default function ImageToPdf({ onBack }: ImageToPdfProps) {
+const PAGE_SIZE_OPTIONS = [
+    { value: 'a4', label: 'A4' },
+    { value: 'letter', label: 'Letter' },
+    { value: 'fit', label: 'Fit Image' },
+]
+
+const ORIENTATION_OPTIONS = [
+    { value: 'portrait', label: 'Portrait' },
+    { value: 'landscape', label: 'Landscape' },
+]
+
+export default function ImageToPdf({ onBack, initialFile }: ImageToPdfProps) {
     const [images, setImages] = useState<ImageFile[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
     const [progress, setProgress] = useState(0)
@@ -28,7 +50,7 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
     const [margin, setMargin] = useState(10)
     const imagesRef = useRef<ImageFile[]>([])
     const cancelRef = useRef(false)
-    const { error } = useToast()
+    const { error, success } = useToast()
 
     useEffect(() => {
         imagesRef.current = images
@@ -38,22 +60,35 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
         imagesRef.current.forEach((image) => URL.revokeObjectURL(image.url))
     }, [])
 
-    const handleFiles = useCallback(async (selectedFiles: File[]) => {
-        if (selectedFiles.length === 0) return
-        const newImages: ImageFile[] = []
+    const handleFiles = useCallback(
+        async (selectedFiles: File[]) => {
+            if (selectedFiles.length === 0) return
+            const newImages: ImageFile[] = []
 
-        try {
-            for (const file of selectedFiles) {
-                const url = URL.createObjectURL(file)
-                const info = await getImageInfo(file)
-                newImages.push({ file, url, info })
+            try {
+                for (const file of selectedFiles) {
+                    const url = URL.createObjectURL(file)
+                    const info = await getImageInfo(file)
+                    newImages.push({ file, url, info })
+                }
+                setImages((current) => [...current, ...newImages])
+            } catch (err) {
+                newImages.forEach((image) => URL.revokeObjectURL(image.url))
+                error(err instanceof Error ? err.message : 'Could not add one of the images')
             }
-            setImages((current) => [...current, ...newImages])
-        } catch (err) {
-            newImages.forEach((image) => URL.revokeObjectURL(image.url))
-            error(err instanceof Error ? err.message : 'Could not add one of the images')
+        },
+        [error]
+    )
+
+    // Handle initialFile prop
+    useEffect(() => {
+        if (initialFile && images.length === 0) {
+            const timer = setTimeout(() => {
+                void handleFiles([initialFile])
+            }, 0)
+            return () => clearTimeout(timer)
         }
-    }, [error])
+    }, [initialFile, images.length, handleFiles])
 
     const toPdfDataUrl = async (image: ImageFile): Promise<string> => {
         const img = await loadImage(image.file)
@@ -72,7 +107,6 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
         return canvas.toDataURL(isJpeg ? 'image/jpeg' : 'image/png', 0.92)
     }
 
-    // Remove image
     const removeImage = (index: number) => {
         const newImages = [...images]
         URL.revokeObjectURL(newImages[index].url)
@@ -80,12 +114,11 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
         setImages(newImages)
     }
 
-    // Move image up/down
     const moveImage = (index: number, direction: 'up' | 'down') => {
         const newImages = [...images]
         const newIndex = direction === 'up' ? index - 1 : index + 1
         if (newIndex < 0 || newIndex >= newImages.length) return
-        [newImages[index], newImages[newIndex]] = [newImages[newIndex], newImages[index]]
+        ;[newImages[index], newImages[newIndex]] = [newImages[newIndex], newImages[index]]
         setImages(newImages)
     }
 
@@ -160,7 +193,8 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
 
             if (cancelRef.current) return
             const baseName = images[0].file.name.replace(/\.[^/.]+$/, '')
-            pdf.save(buildOutputName(baseName, images.length > 1 ? `${images.length}-images` : 'document', 'pdf'))
+            pdf.save(buildOutputName(baseName, images.length > 1 ? `${images.length}-pages` : 'document', 'pdf'))
+            success('PDF generated successfully')
         } catch (err) {
             error(err instanceof Error ? err.message : 'Could not generate the PDF')
         } finally {
@@ -169,182 +203,227 @@ export default function ImageToPdf({ onBack }: ImageToPdfProps) {
         }
     }
 
+    const cancel = () => {
+        cancelRef.current = true
+        setIsProcessing(false)
+    }
+
     const handleReset = () => {
         images.forEach((img) => URL.revokeObjectURL(img.url))
         setImages([])
     }
 
-    return (
-        <div className="tool-page">
-            <div className="tool-header">
-                <button className="back-button" onClick={onBack}>←</button>
-                <h1 className="tool-title">Image to PDF</h1>
-            </div>
+    const leftControls = (
+        <>
+            <ControlGroup label="Add Pages">
+                <Dropzone
+                    onFiles={(files) => void handleFiles(files)}
+                    multiple
+                    icon="file-text"
+                    title="Add more images"
+                    hint="PNG, JPEG, WebP"
+                />
+            </ControlGroup>
 
-            <Dropzone
-                onFiles={handleFiles}
-                multiple
-                icon="📄"
-                title={images.length > 0 ? 'Add more images' : 'Drop images here or click to browse'}
-                hint="Convert multiple images into a single PDF document"
-            />
+            <ControlGroup label="Page Size">
+                <SegmentedControl
+                    value={pageSize}
+                    onChange={(val) => setPageSize(val as 'a4' | 'letter' | 'fit')}
+                    options={PAGE_SIZE_OPTIONS}
+                />
+            </ControlGroup>
 
-            {/* Image List */}
-            {images.length > 0 && (
+            {pageSize !== 'fit' && (
                 <>
-                    <div className="controls-panel" style={{ marginTop: '1.5rem' }}>
-                        <h4 style={{ marginBottom: '1rem' }}>Images ({images.length})</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {images.map((img, index) => (
-                                <div
-                                    key={index}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '1rem',
-                                        padding: '0.75rem',
-                                        background: 'rgba(255,255,255,0.03)',
-                                        borderRadius: '8px'
-                                    }}
-                                >
-                                    <img
-                                        src={img.url}
-                                        alt={`Image ${index + 1}`}
-                                        style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8 }}
-                                    />
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>Page {index + 1}</div>
-                                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
-                                            {img.info.width}×{img.info.height} • {formatFileSize(img.info.size)}
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                        <button
-                                            onClick={() => moveImage(index, 'up')}
-                                            disabled={index === 0}
-                                            style={{
-                                                padding: '0.5rem',
-                                                background: 'rgba(255,255,255,0.1)',
-                                                border: 'none',
-                                                borderRadius: 6,
-                                                cursor: index === 0 ? 'not-allowed' : 'pointer',
-                                                opacity: index === 0 ? 0.3 : 1,
-                                                color: 'white'
-                                            }}
-                                        >
-                                            ↑
-                                        </button>
-                                        <button
-                                            onClick={() => moveImage(index, 'down')}
-                                            disabled={index === images.length - 1}
-                                            style={{
-                                                padding: '0.5rem',
-                                                background: 'rgba(255,255,255,0.1)',
-                                                border: 'none',
-                                                borderRadius: 6,
-                                                cursor: index === images.length - 1 ? 'not-allowed' : 'pointer',
-                                                opacity: index === images.length - 1 ? 0.3 : 1,
-                                                color: 'white'
-                                            }}
-                                        >
-                                            ↓
-                                        </button>
-                                        <button
-                                            onClick={() => removeImage(index)}
-                                            style={{
-                                                padding: '0.5rem',
-                                                background: 'rgba(245, 87, 108, 0.2)',
-                                                border: 'none',
-                                                borderRadius: 6,
-                                                cursor: 'pointer',
-                                                color: '#f5576c'
-                                            }}
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <ControlGroup label="Orientation">
+                        <SegmentedControl
+                            value={orientation}
+                            onChange={(val) => setOrientation(val as 'portrait' | 'landscape')}
+                            options={ORIENTATION_OPTIONS}
+                        />
+                    </ControlGroup>
 
-                    {/* PDF Options */}
-                    <div className="controls-panel" style={{ marginTop: '1rem' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                            <div className="control-group">
-                                <label className="control-label"><span>Page Size</span></label>
-                                <div className="select-buttons">
-                                    <button className={`select-button ${pageSize === 'a4' ? 'active' : ''}`} onClick={() => setPageSize('a4')}>A4</button>
-                                    <button className={`select-button ${pageSize === 'letter' ? 'active' : ''}`} onClick={() => setPageSize('letter')}>Letter</button>
-                                    <button className={`select-button ${pageSize === 'fit' ? 'active' : ''}`} onClick={() => setPageSize('fit')}>Fit Image</button>
-                                </div>
-                            </div>
-
-                            {pageSize !== 'fit' && (
-                                <>
-                                    <div className="control-group">
-                                        <label className="control-label"><span>Orientation</span></label>
-                                        <div className="select-buttons">
-                                            <button className={`select-button ${orientation === 'portrait' ? 'active' : ''}`} onClick={() => setOrientation('portrait')}>Portrait</button>
-                                            <button className={`select-button ${orientation === 'landscape' ? 'active' : ''}`} onClick={() => setOrientation('landscape')}>Landscape</button>
-                                        </div>
-                                    </div>
-
-                                    <div className="control-group">
-                                        <label className="control-label">
-                                            <span>Margin</span>
-                                            <span className="control-value">{margin}mm</span>
-                                        </label>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="30"
-                                            value={margin}
-                                            onChange={(e) => setMargin(Number(e.target.value))}
-                                            style={{ width: '100%' }}
-                                        />
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="actions-bar">
-                        <button className="secondary-button" onClick={handleReset}>
-                            🔄 Clear All
-                        </button>
-                        <button
-                            className="download-button"
-                            onClick={generatePdf}
-                            disabled={isProcessing}
-                        >
-                            {isProcessing ? '⏳ Generating...' : `📄 Generate PDF (${images.length} pages)`}
-                        </button>
-                    </div>
+                    <ControlGroup label="Page Margin" hint="Outer margin around images">
+                        <Slider
+                            value={margin}
+                            min={0}
+                            max={30}
+                            step={2}
+                            unit="mm"
+                            onChange={setMargin}
+                        />
+                    </ControlGroup>
                 </>
             )}
 
             {isProcessing && (
-                <div className="processing-overlay" role="status" aria-live="polite">
-                    <div className="processing-content">
-                        <div className="processing-spinner" />
-                        <div className="processing-text">
-                            Generating PDF… {progress > 0 ? `${progress}%` : ''}
-                        </div>
-                        <div className="progress-track" style={{ width: 220, marginTop: '0.75rem' }}>
-                            <div className="progress-fill" style={{ width: `${progress}%` }} />
-                        </div>
-                        <button
-                            className="secondary-button"
-                            style={{ marginTop: '1rem' }}
-                            onClick={() => { cancelRef.current = true }}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
+                <ControlGroup label="Rendering PDF">
+                    <ProgressBar
+                        progress={progress}
+                        stageText="Composing vector pages and embedding image streams…"
+                        onCancel={cancel}
+                    />
+                </ControlGroup>
             )}
+        </>
+    )
+
+    const centerCanvas = images.length === 0 ? (
+        <Dropzone
+            onFiles={(files) => void handleFiles(files)}
+            multiple
+            icon="file-text"
+            title="Drop images to convert to PDF"
+            hint="Supports multiple photos and document scans"
+            onTrySample={async () => {
+                const s = await createSampleImage()
+                void handleFiles([s])
+            }}
+        />
+    ) : (
+        <div style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    Pages Sequence ({images.length})
+                </p>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                    Use arrows to reorder pages
+                </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-2)' }}>
+                {images.map((img, idx) => (
+                    <div
+                        key={idx}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: 'var(--spacing-2) var(--spacing-3)',
+                            backgroundColor: 'var(--color-bg-surface)',
+                            border: '1px solid var(--color-border-default)',
+                            borderRadius: 'var(--radius-md)',
+                            gap: 'var(--spacing-3)',
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-3)', minWidth: 0 }}>
+                            <span
+                                style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    color: 'var(--color-text-tertiary)',
+                                    width: '20px',
+                                }}
+                            >
+                                #{idx + 1}
+                            </span>
+                            <img
+                                src={img.url}
+                                alt={img.file.name}
+                                style={{
+                                    width: '50px',
+                                    height: '50px',
+                                    objectFit: 'cover',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: '1px solid var(--color-border-subtle)',
+                                }}
+                            />
+                            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                                <span
+                                    style={{
+                                        fontSize: '13px',
+                                        fontWeight: 500,
+                                        color: 'var(--color-text-primary)',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    {img.file.name}
+                                </span>
+                                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                                    {img.info.width} × {img.info.height} · {formatFileSize(img.file.size)}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={idx === 0}
+                                onClick={() => moveImage(idx, 'up')}
+                                aria-label="Move up"
+                                icon={<ChevronUp size={14} />}
+                            />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={idx === images.length - 1}
+                                onClick={() => moveImage(idx, 'down')}
+                                aria-label="Move down"
+                                icon={<ChevronDown size={14} />}
+                            />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeImage(idx)}
+                                aria-label="Remove page"
+                                icon={<Trash2 size={14} />}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+
+    const bottomBar = (
+        <>
+            <div style={{ display: 'flex', gap: 'var(--spacing-3)' }}>
+                <StatTile label="Total Pages" value={images.length} />
+                <StatTile label="Page Size" value={pageSize.toUpperCase()} />
+                {pageSize !== 'fit' && (
+                    <StatTile
+                        label="Orientation"
+                        value={orientation === 'portrait' ? 'Portrait' : 'Landscape'}
+                    />
+                )}
+            </div>
+
+            <div className="workspace-action-group">
+                <Button variant="ghost" onClick={handleReset} icon={<RotateCcw size={15} />}>
+                    Clear All
+                </Button>
+                <Button
+                    variant="primary"
+                    onClick={() => void generatePdf()}
+                    disabled={images.length === 0 || isProcessing}
+                    isLoading={isProcessing}
+                    icon={<Download size={15} />}
+                >
+                    Generate & Download PDF
+                </Button>
+            </div>
+        </>
+    )
+
+    return (
+        <div className="tool-view-wrapper">
+            <ToolHeader
+                toolName="Image to PDF"
+                toolIcon={<FileText size={18} />}
+                toolId="image-to-pdf"
+                onBack={onBack}
+                onReset={images.length > 0 ? handleReset : undefined}
+            />
+            <WorkspaceLayout
+                leftControls={leftControls}
+                centerCanvas={centerCanvas}
+                bottomBar={bottomBar}
+                hasFile={images.length > 0}
+            />
         </div>
     )
 }

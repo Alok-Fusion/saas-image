@@ -6,6 +6,7 @@ import { useToast } from './Toast'
 interface DropzoneProps {
     onFiles: (files: File[]) => void
     kind?: 'image' | 'pdf'
+    accept?: string | Record<string, string[]>
     multiple?: boolean
     icon?: ReactNode
     title?: string
@@ -20,6 +21,7 @@ interface DropzoneProps {
 export default function Dropzone({
     onFiles,
     kind = 'image',
+    accept,
     multiple = false,
     icon,
     title = 'Drop an image, click to browse, or paste from clipboard',
@@ -68,6 +70,13 @@ export default function Dropzone({
     }, [disabled, enablePaste, handleFiles])
 
     const busy = disabled || isChecking
+    const computedAccept = typeof accept === 'string'
+        ? accept
+        : accept
+        ? Object.entries(accept).flatMap(([mime, exts]) => [mime, ...exts]).join(',')
+        : kind === 'pdf'
+        ? 'application/pdf,.pdf'
+        : IMAGE_ACCEPT_ATTRIBUTE
 
     return (
         <div
@@ -125,7 +134,7 @@ export default function Dropzone({
             <input
                 ref={inputRef}
                 type="file"
-                accept={kind === 'pdf' ? 'application/pdf,.pdf' : IMAGE_ACCEPT_ATTRIBUTE}
+                accept={computedAccept}
                 multiple={multiple}
                 onChange={(event) => {
                     void handleFiles(event.target.files)

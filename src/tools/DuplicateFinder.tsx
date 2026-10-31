@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Copy, RotateCcw, Trash2 } from 'lucide-react'
+import Button from '../components/Button'
+import ControlGroup from '../components/ControlGroup'
 import Dropzone from '../components/Dropzone'
+import ProgressBar from '../components/ProgressBar'
+import StatTile from '../components/StatTile'
+import ToolHeader from '../components/ToolHeader'
 import { useToast } from '../components/Toast'
+import WorkspaceLayout from '../components/WorkspaceLayout'
 import { getConcurrencyLimit, mapWithConcurrency } from '../utils/concurrency'
 import {
     findDuplicates,
@@ -9,6 +16,7 @@ import {
 } from '../utils/duplicateHashing'
 import { formatFileSize, getImageInfo } from '../utils/imageProcessing'
 import { runImageTask, type WorkerTask } from '../utils/imageWorker'
+import { createSampleImage } from '../utils/sampleImage'
 
 interface DuplicateFinderProps {
     onBack: () => void
@@ -32,43 +40,48 @@ export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
         imagesRef.current.forEach((img) => URL.revokeObjectURL(img.url))
     }, [])
 
-    const handleFiles = useCallback(async (selectedFiles: File[]) => {
-        if (selectedFiles.length === 0) return
+    const handleFiles = useCallback(
+        async (selectedFiles: File[]) => {
+            if (selectedFiles.length === 0) return
 
-        setIsProcessing(true)
-        setProgress(0)
-        activeTasksRef.current = new Set()
-
-        try {
-            const results = await mapWithConcurrency(
-                selectedFiles,
-                getConcurrencyLimit(selectedFiles.length),
-                async (file) => {
-                    const info = await getImageInfo(file)
-                    const task = runImageTask<string>({ kind: 'hash', file })
-                    activeTasksRef.current.add(task)
-                    try {
-                        const hash = await task.promise
-                        return { file, url: URL.createObjectURL(file), info, hash }
-                    } finally {
-                        activeTasksRef.current.delete(task)
-                    }
-                },
-                (done, total) => setProgress(Math.round((done / total) * 100))
-            )
-
-            const allImages = [...images, ...results]
-            setImages(allImages)
-            setDuplicateGroups(findDuplicates(allImages))
-        } catch (err) {
-            if (!(err instanceof Error && err.name === 'AbortError')) {
-                error(err instanceof Error ? err.message : 'Error processing some images')
-            }
-        } finally {
-            setIsProcessing(false)
+            setIsProcessing(true)
+            setProgress(0)
             activeTasksRef.current = new Set()
-        }
-    }, [error, images])
+
+            try {
+                const results = await mapWithConcurrency(
+                    selectedFiles,
+                    getConcurrencyLimit(selectedFiles.length),
+                    async (file) => {
+                        const info = await getImageInfo(file)
+                        const task = runImageTask<string>({ kind: 'hash', file })
+                        activeTasksRef.current.add(task)
+                        try {
+                            const hash = await task.promise
+                            return { file, url: URL.createObjectURL(file), info, hash }
+                        } finally {
+                            activeTasksRef.current.delete(task)
+                        }
+                    },
+                    (done, total) => setProgress(Math.round((done / total) * 100))
+                )
+
+                setImages((prev) => {
+                    const allImages = [...prev, ...results]
+                    setDuplicateGroups(findDuplicates(allImages))
+                    return allImages
+                })
+            } catch (err) {
+                if (!(err instanceof Error && err.name === 'AbortError')) {
+                    error(err instanceof Error ? err.message : 'Error processing some images')
+                }
+            } finally {
+                setIsProcessing(false)
+                activeTasksRef.current = new Set()
+            }
+        },
+        [error]
+    )
 
     const cancel = () => {
         activeTasksRef.current.forEach((task) => task.cancel())
@@ -76,133 +89,154 @@ export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
     }
 
     const removeImage = (index: number) => {
-        const newImages = [...images]
-        URL.revokeObjectURL(newImages[index].url)
-        newImages.splice(index, 1)
-        setImages(newImages)
-        setDuplicateGroups(findDuplicates(newImages))
+        setImages((prev) => {
+            const next = [...prev]
+            URL.revokeObjectURL(next[index].url)
+            next.splice(index, 1)
+            setDuplicateGroups(findDuplicates(next))
+            return next
+        })
     }
 
     const handleReset = () => {
         cancel()
-        images.forEach(img => URL.revokeObjectURL(img.url))
+        images.forEach((img) => URL.revokeObjectURL(img.url))
         setImages([])
         setDuplicateGroups([])
         setProgress(0)
     }
 
-    const uniqueCount = images.length - duplicateGroups.reduce((acc, g) => acc + g.images.length - 1, 0)
     const duplicateCount = duplicateGroups.reduce((acc, g) => acc + g.images.length - 1, 0)
+    const uniqueCount = images.length - duplicateCount
 
-    return (
-        <div className="tool-page">
-            <div className="tool-header">
-                <button className="back-button" onClick={onBack}>←</button>
-                <h1 className="tool-title">Duplicate Image Finder</h1>
-            </div>
+    const leftControls = (
+        <>
+            <ControlGroup label="Add More Photos">
+                <Dropzone
+                    onFiles={(files) => void handleFiles(files)}
+                    multiple
+                    icon="image"
+                    title="Add more images"
+                    hint="Batch perceptual hash scan"
+                    disabled={isProcessing}
+                />
+            </ControlGroup>
 
-            <Dropzone
-                onFiles={(files) => void handleFiles(files)}
-                multiple
-                icon="🔍"
-                title={images.length > 0 ? 'Add more images or drop them here' : 'Drop multiple images here or click to browse'}
-                hint="Uses perceptual hashing to find visually similar images"
-                disabled={isProcessing}
-            />
-
-            {/* Stats */}
-            {images.length > 0 && (
-                <div className="image-info" style={{ marginTop: '1.5rem', justifyContent: 'center' }}>
-                    <span className="info-badge">
-                        <span className="info-badge-label">Total:</span>
-                        <span className="info-badge-value">{images.length} images</span>
-                    </span>
-                    <span className="info-badge">
-                        <span className="info-badge-label">Unique:</span>
-                        <span className="info-badge-value" style={{ color: '#38ef7d' }}>{uniqueCount}</span>
-                    </span>
-                    {duplicateCount > 0 && (
-                        <span className="info-badge">
-                            <span className="info-badge-label">Duplicates:</span>
-                            <span className="info-badge-value" style={{ color: '#f5576c' }}>{duplicateCount}</span>
+            <ControlGroup label="Scan Summary">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-2)' }}>
+                    <div className="stat-tile">
+                        <span className="stat-tile-label">Scanned</span>
+                        <span className="stat-tile-value">{images.length}</span>
+                    </div>
+                    <div className="stat-tile">
+                        <span className="stat-tile-label">Duplicates</span>
+                        <span className="stat-tile-value" style={{ color: duplicateCount > 0 ? 'var(--color-danger)' : undefined }}>
+                            {duplicateCount}
                         </span>
-                    )}
+                    </div>
                 </div>
+            </ControlGroup>
+
+            {isProcessing && (
+                <ControlGroup label="Hashing Progress">
+                    <ProgressBar
+                        progress={progress}
+                        stageText="Calculating perceptual dHash in web worker…"
+                        onCancel={cancel}
+                    />
+                </ControlGroup>
             )}
+        </>
+    )
 
-            {/* Duplicate Groups */}
+    const centerCanvas = images.length === 0 ? (
+        <Dropzone
+            onFiles={(files) => void handleFiles(files)}
+            multiple
+            icon="copy"
+            title="Drop multiple images to find duplicates"
+            hint="Perceptually compares visual similarity in your browser"
+            onTrySample={async () => {
+                const s1 = await createSampleImage()
+                const s2 = new File([s1], 'sample-copy.png', { type: s1.type })
+                void handleFiles([s1, s2])
+            }}
+        />
+    ) : (
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
+            {/* Duplicate Groups Section */}
             {duplicateGroups.length > 0 && (
-                <div className="controls-panel" style={{ marginTop: '1.5rem' }}>
-                    <h4 style={{ marginBottom: '1rem', color: '#f5576c' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+                    <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-danger)', margin: 0 }}>
                         ⚠️ Found {duplicateGroups.length} Duplicate Group{duplicateGroups.length > 1 ? 's' : ''}
-                    </h4>
-
-                    {duplicateGroups.map((group, groupIndex) => (
-                        <div key={groupIndex} style={{
-                            marginBottom: '1rem',
-                            padding: '1rem',
-                            background: 'rgba(245, 87, 108, 0.1)',
-                            borderRadius: '12px',
-                            border: '1px solid rgba(245, 87, 108, 0.3)'
-                        }}>
-                            <div style={{ marginBottom: '0.75rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.7)' }}>
-                                Group {groupIndex + 1} - {group.images.length} similar images
-                            </div>
-                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                                {group.images.map((img, imgIndex) => (
-                                    <div key={imgIndex} style={{ position: 'relative' }}>
+                    </h3>
+                    {duplicateGroups.map((group, groupIdx) => (
+                        <div
+                            key={groupIdx}
+                            style={{
+                                padding: 'var(--spacing-3)',
+                                backgroundColor: 'var(--color-bg-surface)',
+                                border: '1px solid var(--color-border-default)',
+                                borderRadius: 'var(--radius-md)',
+                            }}
+                        >
+                            <p style={{ margin: '0 0 var(--spacing-2) 0', fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                                Group #{groupIdx + 1} — {group.images.length} visually matching images
+                            </p>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-3)', flexWrap: 'wrap' }}>
+                                {group.images.map((img, imgIdx) => (
+                                    <div
+                                        key={imgIdx}
+                                        style={{
+                                            position: 'relative',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            width: '120px',
+                                        }}
+                                    >
                                         <img
                                             src={img.url}
                                             alt={img.file.name}
                                             style={{
-                                                width: '100px',
+                                                width: '120px',
                                                 height: '100px',
                                                 objectFit: 'cover',
-                                                borderRadius: '8px',
-                                                border: imgIndex === 0 ? '2px solid #38ef7d' : '2px solid #f5576c'
+                                                borderRadius: 'var(--radius-sm)',
+                                                border: imgIdx === 0
+                                                    ? '2px solid var(--color-success)'
+                                                    : '2px solid var(--color-danger)',
                                             }}
                                         />
-                                        {imgIndex === 0 && (
-                                            <div style={{
+                                        <span
+                                            style={{
                                                 position: 'absolute',
-                                                top: '-8px',
-                                                right: '-8px',
-                                                background: '#38ef7d',
-                                                color: '#000',
+                                                top: 4,
+                                                left: 4,
                                                 padding: '2px 6px',
-                                                borderRadius: '4px',
-                                                fontSize: '0.7rem',
-                                                fontWeight: 600
-                                            }}>
-                                                Keep
-                                            </div>
-                                        )}
-                                        {imgIndex > 0 && (
-                                            <div style={{
-                                                position: 'absolute',
-                                                top: '-8px',
-                                                right: '-8px',
-                                                background: '#f5576c',
-                                                color: '#fff',
-                                                padding: '2px 6px',
-                                                borderRadius: '4px',
-                                                fontSize: '0.7rem',
-                                                fontWeight: 600
-                                            }}>
-                                                Duplicate
-                                            </div>
-                                        )}
-                                        <div style={{
-                                            fontSize: '0.7rem',
-                                            marginTop: '0.25rem',
-                                            color: 'rgba(255,255,255,0.5)',
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            width: '100px'
-                                        }}>
-                                            {formatFileSize(img.info.size)}
-                                        </div>
+                                                borderRadius: 'var(--radius-sm)',
+                                                fontSize: '10px',
+                                                fontWeight: 600,
+                                                backgroundColor: imgIdx === 0 ? 'var(--color-success)' : 'var(--color-danger)',
+                                                color: '#ffffff',
+                                            }}
+                                        >
+                                            {imgIdx === 0 ? 'Original' : 'Duplicate'}
+                                        </span>
+                                        <span
+                                            style={{
+                                                fontSize: '11px',
+                                                color: 'var(--color-text-secondary)',
+                                                marginTop: '4px',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                            }}
+                                        >
+                                            {img.file.name}
+                                        </span>
+                                        <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>
+                                            {formatFileSize(img.file.size)}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
@@ -211,103 +245,117 @@ export default function DuplicateFinder({ onBack }: DuplicateFinderProps) {
                 </div>
             )}
 
-            {/* All Images Grid */}
-            {images.length > 0 && duplicateGroups.length === 0 && !isProcessing && (
-                <div style={{
-                    marginTop: '1.5rem',
-                    padding: '1rem',
-                    background: 'rgba(56, 239, 125, 0.1)',
-                    borderRadius: '12px',
-                    textAlign: 'center'
-                }}>
-                    <p style={{ color: '#38ef7d', fontSize: '1rem' }}>
-                        ✅ No duplicates found! All {images.length} images are unique.
-                    </p>
-                </div>
-            )}
-
-            {/* All Images Preview */}
-            {images.length > 0 && (
-                <div className="controls-panel" style={{ marginTop: '1.5rem' }}>
-                    <h4 style={{ marginBottom: '1rem' }}>All Uploaded Images ({images.length})</h4>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {images.map((img, index) => (
-                            <div key={index} style={{ position: 'relative' }}>
-                                <img
-                                    src={img.url}
-                                    alt={img.file.name}
-                                    style={{
-                                        width: '60px',
-                                        height: '60px',
-                                        objectFit: 'cover',
-                                        borderRadius: '6px'
-                                    }}
-                                />
-                                <button
-                                    onClick={() => removeImage(index)}
-                                    style={{
-                                        position: 'absolute',
-                                        top: '-6px',
-                                        right: '-6px',
-                                        width: '18px',
-                                        height: '18px',
-                                        background: 'rgba(0,0,0,0.7)',
-                                        border: 'none',
-                                        borderRadius: '50%',
-                                        color: 'white',
-                                        fontSize: '10px',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
-                                >
-                                    ×
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Action Buttons */}
-            {images.length > 0 && (
-                <div className="actions-bar">
-                    <button className="secondary-button" onClick={handleReset}>
-                        🔄 Clear All
-                    </button>
-                </div>
-            )}
-
-            {/* Processing Overlay */}
-            {isProcessing && (
-                <div className="processing-overlay">
-                    <div className="processing-content">
-                        <div className="processing-spinner" />
-                        <div className="processing-text">Analyzing Images...</div>
-                        <div style={{
-                            marginTop: '1rem',
-                            width: '200px',
-                            height: '8px',
-                            background: 'rgba(255,255,255,0.1)',
-                            borderRadius: '4px',
-                            overflow: 'hidden'
-                        }}>
-                            <div style={{
-                                width: `${progress}%`,
-                                height: '100%',
-                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                borderRadius: '4px',
-                                transition: 'width 0.3s ease'
-                            }} />
+            {/* All Scanned Images */}
+            <div>
+                <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-2)' }}>
+                    All Scanned Images ({images.length})
+                </h3>
+                <div
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                        gap: 'var(--spacing-3)',
+                    }}
+                >
+                    {images.map((img, idx) => (
+                        <div
+                            key={idx}
+                            style={{
+                                position: 'relative',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                padding: 'var(--spacing-2)',
+                                backgroundColor: 'var(--color-bg-surface)',
+                                border: '1px solid var(--color-border-default)',
+                                borderRadius: 'var(--radius-md)',
+                            }}
+                        >
+                            <img
+                                src={img.url}
+                                alt={img.file.name}
+                                style={{
+                                    width: '100%',
+                                    height: '90px',
+                                    objectFit: 'cover',
+                                    borderRadius: 'var(--radius-sm)',
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => removeImage(idx)}
+                                style={{
+                                    position: 'absolute',
+                                    top: 10,
+                                    right: 10,
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: '50%',
+                                    backgroundColor: 'rgba(0,0,0,0.6)',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}
+                                aria-label="Remove image"
+                            >
+                                <Trash2 size={12} />
+                            </button>
+                            <span
+                                style={{
+                                    fontSize: '11px',
+                                    marginTop: '6px',
+                                    fontWeight: 500,
+                                    color: 'var(--color-text-primary)',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                {img.file.name}
+                            </span>
+                            <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>
+                                {img.info.width} × {img.info.height} · {formatFileSize(img.file.size)}
+                            </span>
                         </div>
-                        <div style={{ marginTop: '0.5rem', color: 'rgba(255,255,255,0.5)' }}>{progress}%</div>
-                        <button className="secondary-button" style={{ marginTop: '1rem' }} onClick={cancel}>
-                            Cancel
-                        </button>
-                    </div>
+                    ))}
                 </div>
-            )}
+            </div>
+        </div>
+    )
+
+    const bottomBar = (
+        <>
+            <div style={{ display: 'flex', gap: 'var(--spacing-3)' }}>
+                <StatTile label="Total Images" value={images.length} />
+                <StatTile label="Unique" value={uniqueCount} />
+                <StatTile label="Duplicates" value={duplicateCount} />
+            </div>
+
+            <div className="workspace-action-group">
+                <Button variant="ghost" onClick={handleReset} icon={<RotateCcw size={15} />}>
+                    Clear All
+                </Button>
+            </div>
+        </>
+    )
+
+    return (
+        <div className="tool-view-wrapper">
+            <ToolHeader
+                toolName="Duplicate Finder"
+                toolIcon={<Copy size={18} />}
+                toolId="duplicate-finder"
+                onBack={onBack}
+                onReset={images.length > 0 ? handleReset : undefined}
+            />
+            <WorkspaceLayout
+                leftControls={leftControls}
+                centerCanvas={centerCanvas}
+                bottomBar={bottomBar}
+                hasFile={images.length > 0}
+            />
         </div>
     )
 }

@@ -66,3 +66,6 @@ export function getSampleImageFile(): Promise<File> {
         }, 'image/png')
     })
 }
+
+export const createSampleImage = getSampleImageFile
+

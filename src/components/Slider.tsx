@@ -1,7 +1,7 @@
 import type { ChangeEvent } from 'react'
 
 interface SliderProps {
-    label: string
+    label?: string
     value: number
     min?: number
     max?: number
@@ -31,13 +31,15 @@ export default function Slider({
 
     return (
         <div className={`slider-container ${className}`}>
-            <div className="slider-header">
-                <span className="slider-label">{label}</span>
-                <span className="slider-value-badge">
-                    {value}
-                    {unit}
-                </span>
-            </div>
+            {(label || unit) && (
+                <div className="slider-header">
+                    {label && <span className="slider-label">{label}</span>}
+                    <span className="slider-value-badge" style={{ marginLeft: label ? 'auto' : undefined }}>
+                        {value}
+                        {unit}
+                    </span>
+                </div>
+            )}
             <input
                 type="range"
                 min={min}
@@ -45,7 +47,7 @@ export default function Slider({
                 step={step}
                 value={value}
                 disabled={disabled}
-                aria-label={ariaLabel || label}
+                aria-label={ariaLabel || label || 'Value'}
                 aria-valuemin={min}
                 aria-valuemax={max}
                 aria-valuenow={value}

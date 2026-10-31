@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Archive, Download, FileText, RotateCcw } from 'lucide-react'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import Button from '../components/Button'
+import ControlGroup from '../components/ControlGroup'
+import Dropzone from '../components/Dropzone'
+import FileChip from '../components/FileChip'
+import ProgressBar from '../components/ProgressBar'
+import SegmentedControl from '../components/SegmentedControl'
+import StatTile from '../components/StatTile'
+import ToolHeader from '../components/ToolHeader'
+import { useToast } from '../components/Toast'
+import WorkspaceLayout from '../components/WorkspaceLayout'
 import { buildOutputName, downloadBlob } from '../utils/imageProcessing'
 
 interface PdfToImageProps {
@@ -13,20 +24,24 @@ interface RenderedPage {
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024
 
+const SCALE_OPTIONS = [
+    { value: '1', label: '1× (72 DPI)' },
+    { value: '2', label: '2× (150 DPI)' },
+    { value: '3', label: '3× (300 DPI)' },
+]
+
 export default function PdfToImage({ onBack }: PdfToImageProps) {
     const [file, setFile] = useState<File | null>(null)
     const [pages, setPages] = useState<RenderedPage[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
     const [progress, setProgress] = useState(0)
-    const [error, setError] = useState<string | null>(null)
     const [scale, setScale] = useState(2)
-    const [isDragging, setIsDragging] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
     const cancelRef = useRef(false)
     const pagesRef = useRef<RenderedPage[]>([])
+    const { success, error } = useToast()
 
     const revokeAll = useCallback((list: RenderedPage[]) => {
-        list.forEach(page => URL.revokeObjectURL(page.url))
+        list.forEach((page) => URL.revokeObjectURL(page.url))
     }, [])
 
     useEffect(() => {
@@ -40,109 +55,117 @@ export default function PdfToImage({ onBack }: PdfToImageProps) {
         }
     }, [revokeAll])
 
-    const convertPdfToImages = useCallback(async (pdfFile: File, renderScale: number) => {
-        setIsProcessing(true)
-        setProgress(0)
-        setError(null)
-        cancelRef.current = false
+    const convertPdfToImages = useCallback(
+        async (pdfFile: File, renderScale: number) => {
+            setIsProcessing(true)
+            setProgress(0)
+            cancelRef.current = false
 
-        const previous = pagesRef.current
-        pagesRef.current = []
-        setPages([])
-        revokeAll(previous)
+            const previous = pagesRef.current
+            pagesRef.current = []
+            setPages([])
+            revokeAll(previous)
 
-        const pdfjsLib = await import('pdfjs-dist')
-        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
+            const pdfjsLib = await import('pdfjs-dist')
+            pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
-        let pdf: Awaited<ReturnType<typeof pdfjsLib.getDocument>['promise']> | null = null
-        const newPages: RenderedPage[] = []
+            let pdf: Awaited<ReturnType<typeof pdfjsLib.getDocument>['promise']> | null = null
+            const newPages: RenderedPage[] = []
 
-        try {
-            const arrayBuffer = await pdfFile.arrayBuffer()
-            pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-            const pageCount = pdf.numPages
+            try {
+                const arrayBuffer = await pdfFile.arrayBuffer()
+                pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+                const pageCount = pdf.numPages
 
-            for (let i = 1; i <= pageCount; i++) {
-                if (cancelRef.current) break
+                for (let i = 1; i <= pageCount; i++) {
+                    if (cancelRef.current) break
 
-                const page = await pdf.getPage(i)
-                const viewport = page.getViewport({ scale: renderScale })
+                    const page = await pdf.getPage(i)
+                    const viewport = page.getViewport({ scale: renderScale })
 
-                const canvas = document.createElement('canvas')
-                canvas.width = Math.ceil(viewport.width)
-                canvas.height = Math.ceil(viewport.height)
-                const ctx = canvas.getContext('2d')
-                if (!ctx) throw new Error('Canvas not supported')
+                    const canvas = document.createElement('canvas')
+                    canvas.width = Math.ceil(viewport.width)
+                    canvas.height = Math.ceil(viewport.height)
+                    const ctx = canvas.getContext('2d')
+                    if (!ctx) throw new Error('Canvas not supported')
 
-                await page.render({ canvasContext: ctx, viewport, canvas }).promise
+                    await page.render({ canvasContext: ctx, viewport, canvas }).promise
 
-                const blob = await new Promise<Blob>((resolve, reject) => {
-                    canvas.toBlob(
-                        (result) => result ? resolve(result) : reject(new Error('Failed to encode page')),
-                        'image/png'
-                    )
-                })
+                    const blob = await new Promise<Blob>((resolve, reject) => {
+                        canvas.toBlob(
+                            (result) => (result ? resolve(result) : reject(new Error('Failed to encode page'))),
+                            'image/png'
+                        )
+                    })
 
-                // Release the full-resolution bitmap immediately.
-                canvas.width = 0
-                canvas.height = 0
-                page.cleanup()
+                    canvas.width = 0
+                    canvas.height = 0
+                    page.cleanup()
 
-                const rendered = { blob, url: URL.createObjectURL(blob) }
-                newPages.push(rendered)
-                pagesRef.current = [...newPages]
-                setPages([...newPages])
-                setProgress(Math.round((i / pageCount) * 100))
+                    const rendered = { blob, url: URL.createObjectURL(blob) }
+                    newPages.push(rendered)
+                    pagesRef.current = [...newPages]
+                    setPages([...newPages])
+                    setProgress(Math.round((i / pageCount) * 100))
+                }
+
+                if (!cancelRef.current && newPages.length === 0) {
+                    error('This PDF has no pages to render.')
+                } else if (!cancelRef.current) {
+                    success(`Rendered ${newPages.length} PDF page${newPages.length > 1 ? 's' : ''}`)
+                }
+            } catch (err) {
+                const name = (err as { name?: string })?.name
+                if (name === 'PasswordException') {
+                    error('This PDF is password-protected. Remove the password and try again.')
+                } else {
+                    console.error('Error converting PDF:', err)
+                    error('Could not read this PDF. Make sure it is a valid, unencrypted PDF file.')
+                }
+            } finally {
+                if (pdf) {
+                    try {
+                        await pdf.destroy()
+                    } catch {
+                        /* already destroyed */
+                    }
+                }
+                setIsProcessing(false)
             }
+        },
+        [revokeAll, error, success]
+    )
 
-            if (!cancelRef.current && newPages.length === 0) {
-                setError('This PDF has no pages to render.')
+    const handleFile = useCallback(
+        (selectedFile: File) => {
+            if (
+                selectedFile.type !== 'application/pdf' &&
+                !selectedFile.name.toLowerCase().endsWith('.pdf')
+            ) {
+                error('Please select a valid PDF file.')
+                return
             }
-        } catch (err) {
-            const name = (err as { name?: string })?.name
-            if (name === 'PasswordException') {
-                setError('This PDF is password-protected. Remove the password and try again.')
-            } else {
-                console.error('Error converting PDF:', err)
-                setError('Could not read this PDF. Make sure it is a valid, unencrypted PDF file.')
+            if (selectedFile.size > MAX_PDF_BYTES) {
+                error('This PDF is larger than 50 MB. Please choose a smaller file.')
+                return
             }
-        } finally {
-            if (pdf) {
-                try { await pdf.destroy() } catch { /* already destroyed */ }
-            }
-            setIsProcessing(false)
-        }
-    }, [revokeAll])
+            setFile(selectedFile)
+            void convertPdfToImages(selectedFile, scale)
+        },
+        [convertPdfToImages, scale, error]
+    )
 
-    const handleFile = useCallback((selectedFile: File) => {
-        if (selectedFile.type !== 'application/pdf' && !selectedFile.name.toLowerCase().endsWith('.pdf')) {
-            setError('Please select a PDF file.')
-            return
-        }
-        if (selectedFile.size > MAX_PDF_BYTES) {
-            setError('This PDF is larger than 50 MB. Please choose a smaller file.')
-            return
-        }
-        setError(null)
-        setFile(selectedFile)
-        void convertPdfToImages(selectedFile, scale)
-    }, [convertPdfToImages, scale])
-
-    const handleScale = (s: number) => {
+    const handleScaleChange = (val: string) => {
+        const s = Number(val)
         setScale(s)
         if (file) void convertPdfToImages(file, s)
     }
 
-    const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true) }, [])
-    const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false) }, [])
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0])
-    }, [handleFile])
-
     const downloadSingle = (page: RenderedPage, index: number) => {
-        downloadBlob(page.blob, buildOutputName(file?.name || 'document.pdf', `page-${index + 1}`, 'png'))
+        downloadBlob(
+            page.blob,
+            buildOutputName(file?.name || 'document.pdf', `page-${index + 1}`, 'png')
+        )
     }
 
     const downloadAll = async () => {
@@ -154,6 +177,12 @@ export default function PdfToImage({ onBack }: PdfToImageProps) {
         })
         const content = await zip.generateAsync({ type: 'blob' })
         downloadBlob(content, `${baseName}-pages.zip`)
+        success('ZIP archive created and downloaded')
+    }
+
+    const cancel = () => {
+        cancelRef.current = true
+        setIsProcessing(false)
     }
 
     const handleReset = () => {
@@ -162,88 +191,162 @@ export default function PdfToImage({ onBack }: PdfToImageProps) {
         pagesRef.current = []
         setFile(null)
         setPages([])
-        setError(null)
         setProgress(0)
-        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
-    return (
-        <div className="tool-page">
-            <div className="tool-header">
-                <button className="back-button" onClick={onBack} aria-label="Back to all tools">←</button>
-                <h1 className="tool-title">PDF to Image</h1>
+    const leftControls = (
+        <>
+            {file && (
+                <ControlGroup label="Source PDF">
+                    <FileChip
+                        name={file.name}
+                        sizeBytes={file.size}
+                        onRemove={handleReset}
+                    />
+                </ControlGroup>
+            )}
+
+            <ControlGroup
+                label="Render Resolution"
+                hint="Higher DPI produces crisper text and vector graphics"
+            >
+                <SegmentedControl
+                    value={String(scale)}
+                    onChange={handleScaleChange}
+                    options={SCALE_OPTIONS}
+                />
+            </ControlGroup>
+
+            {isProcessing && (
+                <ControlGroup label="Rendering Progress">
+                    <ProgressBar
+                        progress={progress}
+                        stageText="Extracting vector streams to canvas bitmaps…"
+                        onCancel={cancel}
+                    />
+                </ControlGroup>
+            )}
+        </>
+    )
+
+    const centerCanvas = !file ? (
+        <Dropzone
+            onFiles={(files) => handleFile(files[0])}
+            accept={{ 'application/pdf': ['.pdf'] }}
+            icon="file-text"
+            title="Drop PDF here or click to browse"
+            hint="Converts each page to full-resolution PNG images in your browser"
+        />
+    ) : (
+        <div style={{ width: '100%', maxWidth: '1000px', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    Rendered Pages ({pages.length})
+                </p>
+                {pages.length > 1 && (
+                    <Button variant="secondary" size="sm" onClick={() => void downloadAll()} icon={<Archive size={13} />}>
+                        Download All as ZIP
+                    </Button>
+                )}
             </div>
 
-            {error && <div className="error-banner" role="alert">{error}</div>}
-
-            {!file ? (
-                <div
-                    className={`dropzone ${isDragging ? 'dragging' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click() }}
-                >
-                    <div className="dropzone-content">
-                        <div className="dropzone-icon">📑</div>
-                        <p className="dropzone-text">Drop PDF here or click to browse</p>
-                        <p className="dropzone-hint">Convert each PDF page to a high-quality PNG image (max 50 MB)</p>
-                    </div>
-                    <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} style={{ display: 'none' }} />
-                </div>
-            ) : (
-                <>
-                    {isProcessing ? (
-                        <div className="controls-panel" style={{ textAlign: 'center', padding: '3rem' }}>
-                            <div className="processing-spinner" style={{ margin: '0 auto 1.5rem' }} />
-                            <h3>Converting PDF...</h3>
-                            <p style={{ color: 'rgba(255,255,255,0.5)' }}>{progress}% complete</p>
-                            <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, marginTop: '1rem' }}>
-                                <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(135deg, #667eea, #764ba2)', borderRadius: 4, transition: 'width 0.3s' }} />
-                            </div>
-                            <button className="secondary-button" style={{ marginTop: '1.5rem' }} onClick={handleReset}>Cancel</button>
+            <div
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                    gap: 'var(--spacing-3)',
+                }}
+            >
+                {pages.map((page, idx) => (
+                    <div
+                        key={idx}
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            padding: 'var(--spacing-2)',
+                            backgroundColor: 'var(--color-bg-surface)',
+                            border: '1px solid var(--color-border-default)',
+                            borderRadius: 'var(--radius-md)',
+                            gap: 'var(--spacing-2)',
+                        }}
+                    >
+                        <div style={{ position: 'relative', width: '100%', overflow: 'hidden', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}>
+                            <img
+                                src={page.url}
+                                alt={`Page ${idx + 1}`}
+                                style={{ width: '100%', height: 'auto', display: 'block' }}
+                            />
+                            <span
+                                style={{
+                                    position: 'absolute',
+                                    top: 6,
+                                    left: 6,
+                                    backgroundColor: 'rgba(0,0,0,0.65)',
+                                    color: '#ffffff',
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    padding: '2px 6px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontFamily: 'var(--font-mono)',
+                                }}
+                            >
+                                Page {idx + 1}
+                            </span>
                         </div>
-                    ) : (
-                        <>
-                            <div className="controls-panel">
-                                <div className="control-group">
-                                    <label className="control-label" id="pdf-scale-label">
-                                        <span>Quality (Scale)</span>
-                                        <span className="control-value">{scale}x</span>
-                                    </label>
-                                    <div className="select-buttons" role="group" aria-labelledby="pdf-scale-label">
-                                        {[1, 1.5, 2, 3].map(s => (
-                                            <button key={s} className={`select-button ${scale === s ? 'active' : ''}`} aria-pressed={scale === s} onClick={() => handleScale(s)}>{s}x</button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="image-info" style={{ marginTop: '1rem' }}>
-                                    <span className="info-badge"><span className="info-badge-label">File:</span><span className="info-badge-value">{file.name}</span></span>
-                                    <span className="info-badge"><span className="info-badge-label">Pages:</span><span className="info-badge-value">{pages.length}</span></span>
-                                </div>
-                            </div>
 
-                            <div className="results-grid" style={{ marginTop: '1.5rem' }}>
-                                {pages.map((page, i) => (
-                                    <div key={page.url} className="result-card">
-                                        <img src={page.url} alt={`Preview of PDF page ${i + 1}`} className="result-image" />
-                                        <div className="result-title">Page {i + 1}</div>
-                                        <button className="secondary-button" onClick={() => downloadSingle(page, i)} style={{ width: '100%', marginTop: '0.5rem' }}>⬇️ Download</button>
-                                    </div>
-                                ))}
-                            </div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => downloadSingle(page, idx)}
+                            icon={<Download size={13} />}
+                        >
+                            Download PNG
+                        </Button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
 
-                            <div className="actions-bar">
-                                <button className="secondary-button" onClick={handleReset}>🔄 New PDF</button>
-                                <button className="download-button" onClick={downloadAll}>📦 Download All ({pages.length} images)</button>
-                            </div>
-                        </>
-                    )}
-                </>
-            )}
+    const bottomBar = (
+        <>
+            <div style={{ display: 'flex', gap: 'var(--spacing-3)' }}>
+                <StatTile label="Pages Rendered" value={pages.length} />
+                <StatTile label="Scale" value={`${scale}×`} />
+            </div>
+
+            <div className="workspace-action-group">
+                <Button variant="ghost" onClick={handleReset} icon={<RotateCcw size={15} />}>
+                    Reset
+                </Button>
+                {pages.length > 0 && (
+                    <Button
+                        variant="primary"
+                        onClick={() => void downloadAll()}
+                        icon={<Archive size={15} />}
+                    >
+                        Download All ({pages.length} Pages)
+                    </Button>
+                )}
+            </div>
+        </>
+    )
+
+    return (
+        <div className="tool-view-wrapper">
+            <ToolHeader
+                toolName="PDF to Image"
+                toolIcon={<FileText size={18} />}
+                toolId="pdf-to-image"
+                onBack={onBack}
+                onReset={file ? handleReset : undefined}
+            />
+            <WorkspaceLayout
+                leftControls={leftControls}
+                centerCanvas={centerCanvas}
+                bottomBar={bottomBar}
+                hasFile={!!file}
+            />
         </div>
     )
 }

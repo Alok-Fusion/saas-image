@@ -7,8 +7,11 @@ interface ToolItem {
 }
 
 interface ToolHeaderProps {
-    title: string
-    icon: ReactNode
+    title?: string
+    toolName?: string
+    icon?: ReactNode
+    toolIcon?: ReactNode
+    toolId?: string
     onBack: () => void
     onReset?: () => void
     tools?: ToolItem[]
@@ -19,14 +22,20 @@ interface ToolHeaderProps {
 
 export default function ToolHeader({
     title,
+    toolName,
     icon,
+    toolIcon,
     onBack,
     onReset,
     tools,
     currentToolId,
+    toolId,
     onSelectTool,
     extraActions,
 }: ToolHeaderProps) {
+    const displayTitle = title ?? toolName ?? ''
+    const displayIcon = icon ?? toolIcon
+    const activeToolId = currentToolId ?? toolId
     const [dropdownOpen, setDropdownOpen] = useState(false)
 
     return (
@@ -45,8 +54,8 @@ export default function ToolHeader({
                 <div className="workspace-divider" />
 
                 <div className="workspace-title-wrap">
-                    <div className="workspace-tool-icon">{icon}</div>
-                    <span className="workspace-tool-title">{title}</span>
+                    <div className="workspace-tool-icon">{displayIcon}</div>
+                    <span className="workspace-tool-title">{displayTitle}</span>
 
                     {tools && tools.length > 0 && onSelectTool && (
                         <div style={{ position: 'relative' }}>
@@ -98,9 +107,9 @@ export default function ToolHeader({
                                                     textAlign: 'left',
                                                     fontSize: 'var(--font-size-xs)',
                                                     borderRadius: 'var(--radius-xs)',
-                                                    color: t.id === currentToolId ? 'var(--color-accent)' : 'var(--color-text-primary)',
-                                                    backgroundColor: t.id === currentToolId ? 'var(--color-accent-subtle)' : 'transparent',
-                                                    fontWeight: t.id === currentToolId ? 'var(--font-weight-semibold)' : 'normal',
+                                                    color: t.id === activeToolId ? 'var(--color-accent)' : 'var(--color-text-primary)',
+                                                    backgroundColor: t.id === activeToolId ? 'var(--color-accent-subtle)' : 'transparent',
+                                                    fontWeight: t.id === activeToolId ? 'var(--font-weight-semibold)' : 'normal',
                                                 }}
                                             >
                                                 {t.title}

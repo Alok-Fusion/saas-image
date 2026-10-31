@@ -1,8 +1,12 @@
 import { FileImage, X } from 'lucide-react'
+import { formatFileSize } from '../utils/imageProcessing'
 
 interface FileChipProps {
     name: string
     sizeText?: string
+    sizeBytes?: number
+    width?: number
+    height?: number
     thumbnailUrl?: string | null
     onRemove?: () => void
     className?: string
@@ -11,10 +15,21 @@ interface FileChipProps {
 export default function FileChip({
     name,
     sizeText,
+    sizeBytes,
+    width,
+    height,
     thumbnailUrl,
     onRemove,
     className = '',
 }: FileChipProps) {
+    let metaText = sizeText
+    if (!metaText && sizeBytes !== undefined) {
+        metaText = formatFileSize(sizeBytes)
+    }
+    if (width && height) {
+        metaText = metaText ? `${width}×${height} · ${metaText}` : `${width}×${height}`
+    }
+
     return (
         <div
             className={`file-item-card ${className}`}
@@ -72,7 +87,7 @@ export default function FileChip({
                 >
                     {name}
                 </span>
-                {sizeText && (
+                {metaText && (
                     <span
                         className="tabular-nums"
                         style={{
@@ -80,7 +95,7 @@ export default function FileChip({
                             color: 'var(--color-text-muted)',
                         }}
                     >
-                        {sizeText}
+                        {metaText}
                     </span>
                 )}
             </div>
@@ -96,6 +111,9 @@ export default function FileChip({
                         color: 'var(--color-text-muted)',
                         padding: 2,
                         borderRadius: 'var(--radius-xs)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
                     }}
                 >
                     <X size={14} />
