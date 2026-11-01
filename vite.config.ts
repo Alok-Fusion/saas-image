@@ -43,7 +43,7 @@ export default defineConfig({
                     if (id.includes('tesseract.js')) return 'tesseract'
                     if (id.includes('jszip')) return 'jszip'
                     if (id.includes('three') || id.includes('@react-three')) return 'three-vendor'
-                    if (id.includes('gsap') || id.includes('lenis')) return 'motion-vendor'
+                    if (id.includes('gsap')) return 'gsap'
                 },
             },
         },
