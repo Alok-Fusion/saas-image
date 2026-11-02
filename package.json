@@ -26,7 +26,7 @@
         "jspdf": "^4.1.0",
         "jszip": "^3.10.1",
         "lucide-react": "^1.66.0",
-        "onnxruntime-web": "1.21.0",
+        "onnxruntime-web": "1.31.1",
         "pdf-lib": "^1.17.1",
         "pdfjs-dist": "^5.4.624",
         "react": "^18.3.1",
