@@ -53,5 +53,9 @@ $ npm run build
 ✓ 36 static HTML route pages prerendered in dist/
 ✓ Dynamic sitemap.xml generated with 36 canonical URLs
 (exit code: 0)
+
+# 5. Dependency Security Audit: Passed (0 critical vulnerabilities)
+$ npm audit --audit-level=critical
+> 0 critical vulnerabilities found (exit code: 0)
 ```
 
