@@ -165,3 +165,4 @@ Submit ImageKit Pro to these 15 high-authority software directories. Pre-written
 - **Tagline:** All-in-one free browser image tool suite with 100% data privacy
 - **Description (80 words):**
   > ImageKit Pro provides 20 essential image and PDF tools running 100% locally in your browser. From smart WebP compression and social media resizing to neural background removal and EXIF privacy cleaning, ImageKit Pro gives you professional tools without uploading confidential photos to third-party servers. Free and open source under MIT License, ImageKit Pro works without login, features zero rate limits, and delivers instant, hardware-accelerated results every time.
+

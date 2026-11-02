@@ -34,7 +34,7 @@ Restrict certificate issuance to trusted Certificate Authorities (CAs) to preven
 | **CAA** | `@` | `issue` | `"letsencrypt.org"` | Authorizes Let's Encrypt for TLS certificates |
 | **CAA** | `@` | `issue` | `"digicert.com"` | Authorizes DigiCert / Cloudflare Universal SSL |
 | **CAA** | `@` | `issue` | `"pki.goog"` | Authorizes Google Trust Services |
-| **CAA** | `@` | `iodef` | `"mailto:security@imagekitpro.cc"` | Security violation reporting endpoint |
+| **CAA** | `@` | `iodef` | `"mailto:kushwahaalok025@gmail.com"` | Security violation reporting endpoint |
 
 ### C. DNSSEC (DNS Security Extensions)
 1. In Cloudflare Dashboard, navigate to **DNS** > **Settings** > **DNSSEC**.
@@ -98,6 +98,7 @@ Cross-Origin-Opener-Policy: same-origin
 ## 5. Vulnerability Disclosure Policy
 
 Security researchers who discover potential vulnerabilities may report them according to RFC 9116:
-- **Security Contact:** `mailto:security@imagekitpro.cc`
+- **Security Contact:** `mailto:kushwahaalok025@gmail.com`
 - **Security TXT:** [`https://imagekitpro.cc/.well-known/security.txt`](file:///c:/Users/ak500/OneDrive/Desktop/IT/saas-image/public/.well-known/security.txt)
 - **Response SLA:** We acknowledge vulnerability reports within 48 hours and coordinate prompt remediation.
+
