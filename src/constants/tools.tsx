@@ -21,6 +21,7 @@ import {
     Video,
     Wand2,
 } from 'lucide-react'
+import { TOOL_SEO_DATA } from '../data/toolSeoData'
 
 export type Tool =
     | 'home'
@@ -50,51 +51,72 @@ export const TOOL_PATHS: Record<Tool, string> = {
     compressor: '/compress-image',
     resizer: '/resize-image',
     'background-remover': '/remove-background',
-    'exif-cleaner': '/remove-exif',
-    'color-palette': '/color-palette',
-    'instagram-grid': '/instagram-grid',
+    'exif-cleaner': '/remove-exif-data',
+    'color-palette': '/color-palette-extractor',
+    'instagram-grid': '/instagram-grid-splitter',
     favicon: '/favicon-generator',
     ocr: '/image-to-text',
-    'device-mockup': '/device-mockup',
-    'color-blindness': '/color-blindness',
-    'ascii-art': '/ascii-art',
-    'image-comparison': '/image-comparison',
-    'duplicate-finder': '/duplicate-finder',
+    'device-mockup': '/device-mockup-generator',
+    'color-blindness': '/color-blindness-simulator',
+    'ascii-art': '/ascii-art-generator',
+    'image-comparison': '/image-comparison-slider',
+    'duplicate-finder': '/find-duplicate-images',
     'image-to-pdf': '/image-to-pdf',
     'pdf-to-image': '/pdf-to-image',
     cropper: '/crop-image',
     rotator: '/rotate-image',
-    watermark: '/watermark',
+    watermark: '/add-watermark',
     'watermark-remover': '/remove-watermark',
     thumbnail: '/thumbnail-maker',
 }
 
-export const PATH_TO_TOOL = new Map<string, Tool>(
-    (Object.entries(TOOL_PATHS) as [Tool, string][]).map(([tool, path]) => [path, tool])
-)
+export const CATEGORY_PATHS = {
+    'image-tools': '/image-tools',
+    'pdf-tools': '/pdf-tools',
+    'privacy-tools': '/privacy-tools',
+} as const
+
+export const STATIC_PAGE_PATHS = {
+    guides: '/guides',
+    about: '/about',
+    privacy: '/privacy',
+    contact: '/contact',
+} as const
+
+export const PATH_TO_TOOL = new Map<string, Tool>([
+    ...(Object.entries(TOOL_PATHS) as [Tool, string][]).map(([tool, path]) => [path, tool] as [string, Tool]),
+    // Legacy backwards-compatible aliases
+    ['/remove-exif', 'exif-cleaner'],
+    ['/watermark', 'watermark'],
+    ['/duplicate-finder', 'duplicate-finder'],
+    ['/color-palette', 'color-palette'],
+    ['/device-mockup', 'device-mockup'],
+    ['/color-blindness', 'color-blindness'],
+    ['/ascii-art', 'ascii-art'],
+    ['/instagram-grid', 'instagram-grid'],
+    ['/image-comparison', 'image-comparison'],
+    ['/compressor', 'compressor'],
+    ['/resizer', 'resizer'],
+    ['/background-remover', 'background-remover'],
+    ['/cropper', 'cropper'],
+    ['/rotator', 'rotator'],
+    ['/watermark-remover', 'watermark-remover'],
+    ['/ocr', 'ocr'],
+    ['/favicon', 'favicon'],
+    ['/thumbnail', 'thumbnail'],
+])
 
 export const TOOL_SEO: Record<string, { title: string; desc: string }> = {
-    home: { title: 'ImageKit Pro — Fast, Private In-Browser Image Tools', desc: '20 client-side image tools. Zero server uploads, absolute privacy.' },
-    compressor: { title: 'Image Compressor — ImageKit Pro', desc: 'Compress images while maintaining quality. JPEG, PNG, WebP supported.' },
-    resizer: { title: 'Social Media Resizer — ImageKit Pro', desc: 'Resize images for Instagram, YouTube, LinkedIn & more.' },
-    'background-remover': { title: 'Background Remover — ImageKit Pro', desc: 'AI-powered background removal running in your browser.' },
-    'exif-cleaner': { title: 'EXIF Privacy Cleaner — ImageKit Pro', desc: 'Remove GPS, camera info & metadata from your images.' },
-    'color-palette': { title: 'Color Palette Extractor — ImageKit Pro', desc: 'Extract colors with HEX, RGB & CSS gradients.' },
-    'instagram-grid': { title: 'Instagram Grid Splitter — ImageKit Pro', desc: 'Split images into 3×3, 3×2, 3×1 grids for carousel.' },
-    favicon: { title: 'Favicon Generator — ImageKit Pro', desc: 'Generate all favicon sizes + manifest.json + HTML snippet.' },
-    ocr: { title: 'OCR Text Extractor — ImageKit Pro', desc: 'Extract text from images in 12 languages.' },
-    'device-mockup': { title: 'Device Mockup Generator — ImageKit Pro', desc: 'iPhone, MacBook, iPad device frame mockups.' },
-    'color-blindness': { title: 'Color Blindness Simulator — ImageKit Pro', desc: 'See how designs appear to color blind users.' },
-    'ascii-art': { title: 'ASCII Art Generator — ImageKit Pro', desc: 'Convert images to ASCII text art.' },
-    'image-comparison': { title: 'Image Comparison Slider — ImageKit Pro', desc: 'Side-by-side image comparison with slider.' },
-    'duplicate-finder': { title: 'Duplicate Image Finder — ImageKit Pro', desc: 'Find similar images using perceptual hashing.' },
-    'image-to-pdf': { title: 'Image to PDF — ImageKit Pro', desc: 'Convert multiple images into a single PDF.' },
-    'pdf-to-image': { title: 'PDF to Image — ImageKit Pro', desc: 'Convert PDF pages to PNG images.' },
-    cropper: { title: 'Image Cropper — ImageKit Pro', desc: 'Crop images with preset aspect ratios.' },
-    rotator: { title: 'Image Rotator — ImageKit Pro', desc: 'Rotate 90°/180° and flip images.' },
-    watermark: { title: 'Watermark Adder — ImageKit Pro', desc: 'Add text watermarks with custom position & style.' },
-    'watermark-remover': { title: 'Watermark Remover — ImageKit Pro', desc: 'Remove watermarks using inpaint, blur, or pixelate.' },
-    thumbnail: { title: 'Thumbnail Maker — ImageKit Pro', desc: 'Create thumbnails with images, text & emojis.' },
+    home: {
+        title: 'ImageKit Pro — Fast, Private In-Browser Image Tools',
+        desc: '20 client-side image tools. Zero server uploads, absolute privacy, 100% free.',
+    },
+    ...Object.fromEntries(
+        Object.entries(TOOL_SEO_DATA).map(([id, data]) => [
+            id,
+            { title: data.metaTitle, desc: data.metaDescription },
+        ])
+    ),
 }
 
 export interface ToolDefinition {

@@ -11,6 +11,7 @@
 @import './styles/tools.css';
 @import './styles/immersive.css';
 @import './styles/orbit.css';
+@import './styles/seo.css';
 
 /* ==========================================================================
    COMPATIBILITY LAYER (Ensures existing tool class names adapt seamlessly)
