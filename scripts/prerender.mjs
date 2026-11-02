@@ -151,8 +151,10 @@ const ROUTES = [
     },
 ]
 
+const SITE_URL = process.env.VITE_SITE_URL || 'https://imagekitpro.cc'
+
 for (const route of ROUTES) {
-    const routeUrl = `https://imagekitpro.com/${route.path}`
+    const routeUrl = `${SITE_URL}/${route.path}`
     let html = baseTemplate
         .replace(/<title>.*?<\/title>/i, `<title>${route.title}</title>`)
         .replace(/<meta name="description" content=".*?" \/>/i, `<meta name="description" content="${route.desc}" />`)

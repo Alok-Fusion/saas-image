@@ -33,7 +33,7 @@ processing tools. All processing happens client-side — no images are ever
 uploaded to a server.
 
 App Name:       ImageKit Pro
-Live URL:       https://imagekitpro.com
+Live URL:       https://imagekitpro.cc
 Package Name:   image-utility-saas
 Version:        1.0.0
 License:        (see LICENSE file)
@@ -274,7 +274,7 @@ PURPOSE
   Each tool now has a unique, shareable URL using hash-based routing.
 
 HOW IT WORKS
-  • URL format: https://imagekitpro.com/#/{tool-slug}
+  • URL format: https://imagekitpro.cc/#/{tool-slug}
   • Examples:
     - /#/compressor       → Image Compressor
     - /#/background-remover → Background Remover

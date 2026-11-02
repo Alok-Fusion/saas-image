@@ -13,6 +13,7 @@ import ToolSuggestionsBar from './ToolSuggestionsBar'
 import { useCapabilities } from './utils/capabilities'
 import { getInitialTheme, saveTheme, type Theme } from './utils/theme'
 import { Tool, TOOL_PATHS, PATH_TO_TOOL, TOOL_SEO, ALL_TOOLS } from './constants/tools'
+import { SITE_URL } from './constants/site'
 
 const ImmersiveCanvas = lazy(() => import('./components/scene/ImmersiveCanvas'))
 
@@ -160,9 +161,9 @@ function App() {
         const metaDesc = document.querySelector('meta[name="description"]')
         if (metaDesc) metaDesc.setAttribute('content', seo.desc)
         const canonical = document.querySelector('link[rel="canonical"]')
-        if (canonical) canonical.setAttribute('href', `https://imagekitpro.com${TOOL_PATHS[currentTool]}`)
+        if (canonical) canonical.setAttribute('href', `${SITE_URL}${TOOL_PATHS[currentTool]}`)
         const ogUrl = document.querySelector('meta[property="og:url"]')
-        if (ogUrl) ogUrl.setAttribute('content', `https://imagekitpro.com${TOOL_PATHS[currentTool]}`)
+        if (ogUrl) ogUrl.setAttribute('content', `${SITE_URL}${TOOL_PATHS[currentTool]}`)
     }, [currentTool])
 
     const handleSelectTool = useCallback(

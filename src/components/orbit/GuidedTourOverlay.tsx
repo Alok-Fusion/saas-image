@@ -144,3 +144,4 @@ export const GuidedTourOverlay: React.FC<{ onSelectTool: (id: string) => void }>
 }
 
 export default GuidedTourOverlay
+
