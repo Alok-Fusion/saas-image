@@ -326,3 +326,28 @@ All tools verified locally and covered by unit/component test suites:
    - Verified multi-image document assembly with `jspdf@4.1.0` and orientation layout.
 6. **OCR Text Extractor** (`src/tools/OcrExtractor.tsx`):
    - Verified Tesseract worker recognition, multilingual traineddata caching, and text copy/export.
+
+---
+
+## 7. Step 7: Vercel Install Failure Resolution & Clean Up
+
+### Root Cause Analysis of Vercel `npm install` Failure
+- **Issue**: Vercel production deployment failed with `Command "npm install" exited with 1` on commits `cd364ba`, `8d55ef7`, and `c3f8e5a`.
+- **Root Cause**:
+  1. Dependabot PR #17 merged an upgrade of `onnxruntime-web` to `1.21.1`. However, `@imgly/background-removal@1.7.0` has a strict dependency on `onnxruntime-web@1.21.0`. In standard `npm install` on Linux/Vercel, npm's ERESOLVE fails due to conflicting peer versions.
+  2. `pdfjs-dist` was bumped to `5.7.284`, which requires Node.js `>=22.13.0` while Vercel defaulted to Node.js 20.x, causing engine incompatibility.
+- **Resolution**:
+  1. Pinned `onnxruntime-web: "1.21.0"` and `pdfjs-dist: "5.4.624"` in `package.json` and synchronized `package-lock.json`.
+  2. Added `.npmrc` with `legacy-peer-deps=true` to guarantee reliable npm installs across all build environments.
+  3. Added `"engines": { "node": ">=20.18.0" }` in `package.json`.
+  4. Updated `.github/dependabot.yml` to ignore all semver updates (patch, minor, major) for `onnxruntime-web`, `pdfjs-dist`, and `@eslint/js`.
+
+### Git Branch & Workspace Cleanup
+- **Remote Branches Deleted**:
+  - `origin/dependabot/github_actions/github-actions-e6677c7608`
+  - `origin/dependabot/npm_and_yarn/jsdom-30.1.3`
+- **Unnecessary Files Removed**:
+  - `Image_Utility_SaaS_Workflow_Plan.pdf` (legacy planning PDF)
+  - `PROJECT_DOCUMENTATION.txt` (outdated text reference replaced by markdown documentation)
+
+
