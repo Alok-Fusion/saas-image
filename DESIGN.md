@@ -1,227 +1,109 @@
-# ImageKit Pro — Immersive 3D Experience & Design Architecture
-*Award-level creative engineering specification for ImageKit Pro (Awwwards / FWA standard).*
+# ImageKit Pro — Single-Screen 3D Orbit Experience & Design System
+*Award-level creative engineering specification for ImageKit Pro (Single-Screen 100dvh Experience).*
 
 ---
 
 ## 1. Creative Direction & Philosophy
 
-ImageKit Pro unites two opposing worlds:
-1. **The Pure Creative Utility**: 20 zero-compromise, 100% in-browser image tools with absolute privacy (no uploads, no telemetry, no backend).
-2. **The Cinematic Front Door**: An atmospheric, scroll-driven visual journey where visitors experience image transformations directly in interactive 3D before diving into any tool.
+ImageKit Pro replaces long, fatigue-inducing scrolling landing pages with an **instantaneous single-screen creative instrument** (`100dvh`).
 
-### Design Tone
-- **Confident & Minimal**: Minimal prose, oversized typography, cinematic negative space.
-- **Physicality & Light**: Dark studio stage (`#07070a`), directional rim lighting, volumetric light rays, tactile material physics (roughness, metalness, glass transmission).
-- **Intentional Motion**: No arbitrary bouncy fluff. Every animation is anchored to scroll physics, user intent, or visual metaphor.
-- **Dual Engine Architecture**: WebGL 3D canvas acts as a decorative backdrop (`aria-hidden="true"`), layered beneath an accessible semantic DOM with complete keyboard navigability, screen reader support, and instant low-power fallback.
+### Core Principle: Speed to Action
+- **Zero Scroll**: The home page fits strictly within `100dvh` on desktop and mobile. No scrollbars, no wheel hijacking, no narrative scrolling chapters.
+- **Two-Second Landing to Action**: Visitors can drag-and-drop an image, paste from clipboard, click the central drop well, or pick any of the 20 tools within 2 seconds of arrival.
+- **Two Clicks to Result**: Dropping a file re-sorts the 3D orbit into an illuminated "Suggested" ring. One click opens the tool with the image already loaded in memory.
+- **Tactile 3D Depth**: Depth, volumetric studio lighting, responsive cursor tilt, and kinetic orbit physics provide awe without friction.
 
 ---
 
-## 2. Color Palette & Lighting System
+## 2. One-Screen Architecture (Three Layers)
 
-### Primary Canvas Palette
-| Token | Hex | Role |
-| :--- | :--- | :--- |
-| `bg-void` | `#07070a` | Deepest background void, cinematic letterbox tone |
-| `bg-studio` | `#0d0d12` | Studio floor & backdrop vignette |
-| `bg-surface-glass` | `rgba(18, 18, 24, 0.72)` | Frosted glass panel backgrounds (`backdrop-filter: blur(16px)`) |
-| `border-glass` | `rgba(255, 255, 255, 0.08)` | 1px hairline card borders catching specular light |
-| `border-focus` | `rgba(212, 255, 58, 0.6)` | Electric lime focus ring highlight |
-| `text-hero` | `#fbfbfd` | Optical display white (98% luminance) |
-| `text-dim` | `#9e9ea8` | Narrative paragraph text (65% luminance) |
-| `text-whisper` | `#585864` | Chapter numbers, coordinates, hotkey chips |
+```
++----------------------------------------------------------------------------------------------------+
+|  LAYER 3: HTML UI (Top Bar: Logo | Category Chips | Search Cmd+K | Tour | List View | FX | Theme)  |
+|                                                                                                    |
+|                                       Fast, private image tools.                                   |
+|                          20 precision client-side utilities. Zero server uploads.                  |
+|                                                                                                    |
+|                     +-------------------------------------------------------+                      |
+|                     |        [↑] Drop an image, paste, or click to start     |                      |
+|                     |                   Try a sample image                  |                      |
+|                     +-------------------------------------------------------+                      |
+|                                                                                                    |
+|         LAYER 2: 3D TOOL ORBIT (20 Category-Colored Nodes in Concentric Orbit Rings)                |
+|                    (Hover -> Pull forward, slow orbit, dim rest, show mini-demo)                   |
+|                                                                                                    |
+|         LAYER 1: WEBGL STUDIO SCENE (Floating Center Photo Stack + 600 Pixel Dust Particles)       |
+|                                                                                                    |
+|  LAYER 3: HTML FOOTER (Single Thin Line: MIT License · Alok Kushwaha · 100% In-Browser Privacy)   |
++----------------------------------------------------------------------------------------------------+
+```
 
-### Electric Accents
-- **Key Electric Accent (Electric Lime)**: `#d4ff3a` — High-energy creative punch for primary triggers, active badges, and particle emissions.
-- **Secondary Accent (Electric Cyan)**: `#00f0ff` — Scan lines, OCR laser sweeps, privacy shield fields.
-- **Warm Glow (Amber Specular)**: `#ff9e3b` — Warm studio rim light on 3D photo layers.
+### Layer 1: WebGL Studio Scene
+- **Centerpiece**: Floating 3D image stack with procedural artwork, subtle harmonic drift (`sin(t * 0.7)`), and cursor parallax tilt.
+- **Lighting**: Three-point studio lighting (Key Directional Light `2.4`, Electric Lime Rim Light `3.2`, Cyan Underfill `1.2`, Fog `0.035`).
+- **Particles**: 600 floating pixel dust particles drifting gently in 3D studio space.
+- **Drop Reactive**: Dragging a file over the viewport makes the photo planes open like an iris and emit an electric glow.
 
-### 3D Lighting Setup (Three.js Studio)
-- **Key Light**: Directional Light (`#ffffff`, intensity: `2.4`), positioned at `[5, 8, 5]`, cast soft shadow.
-- **Rim / Kicker Light**: Directional Light (`#d4ff3a`, intensity: `3.0`), positioned at `[-6, 4, -4]` to outline photo card edges with lime sheen.
-- **Fill Light**: Point Light (`#00f0ff`, intensity: `1.2`), positioned at `[0, -4, 2]` for subtle blue-cyan underfill.
-- **Atmospheric Fog**: Exponential squared fog (`#07070a`, density: `0.035`) ensuring distant objects dissolve naturally into darkness.
+### Layer 2: 3D Tool Orbit
+20 tools arranged as 3D orb/card nodes in 3 concentric orbit rings around the photo stack:
+- **Inner Ring (Radius 3.2)**: Core Essentials (Compressor, Resizer, Background Remover, Comparison Slider).
+- **Middle Ring (Radius 5.0)**: Edit & PDF (Cropper, Rotator, Watermark Adder, Watermark Remover, Image to PDF, PDF to Image).
+- **Outer Ring (Radius 6.8)**: Privacy, Design, Social & A11y (EXIF Cleaner, Duplicate Finder, OCR, Device Mockup, Palette Extractor, ASCII Art, Thumbnail Maker, Grid Splitter, Favicon, Color Blindness).
+
+#### Category Color Code
+- **Essentials**: Electric Indigo (`#6366f1`)
+- **Edit & Transform**: Sky Blue (`#38bdf8`)
+- **PDF Utilities**: Rose Red (`#e11d48`)
+- **Privacy & Security**: Emerald Green (`#10b981`)
+- **Design & Creative**: Purple Violet (`#a855f7`)
+- **Social Media**: Warm Amber (`#f59e0b`)
+- **Accessibility**: Vivid Cyan (`#06b6d4`)
+
+#### Node Micro-Interactions
+- **Idle**: Gentle continuous orbital rotation around the Y-axis.
+- **Hover**: Orbit slows smoothly (`lerp` to 10% speed). The hovered node scales up (`1.4x`) and pulls toward the camera (+1.2 units on Z). Other nodes dim to 30% opacity.
+- **Hover Card**: Shows tool title, category badge, one-line summary, and a live SVG/CSS micro-animation (e.g. compress block squeezing, crop brackets snapping, background cutout elevating).
+- **Click**: Camera accelerates forward into the node (500ms smooth push), triggering the tool workspace slide-in.
+- **Keyboard**: Arrow keys step focus across the orbit ring; Enter executes tool launch.
+
+### Layer 3: Semantic HTML UI Layer
+- **Header**:
+  - Logo with PRO badge
+  - Live category filter chips (clicking a category illuminates its matching orbit nodes and dims others)
+  - Search trigger with Cmd/Ctrl+K spotlight
+  - **"20s Tour" Button**: Triggers a camera glide across key tools (Compress → Crop → BG Remove → PDF → OCR → Privacy) with clean on-screen overlays, skippable with Esc or click.
+  - **"List / 3D" Toggle**: Lets visitors instantly switch between the 3D Orbit and an accessible 2D Grid view.
+  - **"Minimal FX" Toggle**: Enables instant low-power mode.
+  - Theme Toggle (Light / Dark).
+- **Center Hero & Drop Well**:
+  - Monumental display headline in Instrument Serif (`clamp(40px, 5.5vw, 76px)`).
+  - Compact glass drop target (`height: 94px`) with drag-and-drop, file picker, clipboard paste listener, and "Try a sample image" shortcut.
+- **Footer**: Single 32px slim bar with privacy pill, copyright, and author credit.
 
 ---
 
-## 3. Typography Scale & Hierarchy
+## 3. Drop-First Flow & Smart Re-Sorting
 
-### Fonts
-1. **Display Face**: `Instrument Serif` (Italic & Regular via `@fontsource/instrument-serif`) — Sculptural, literary, and high-fashion editorial contrast.
-2. **Interface Sans**: `Geist Sans` (via `@fontsource/geist-sans`) — Razor-sharp geometric legibility for controls, tabs, and toolbars.
-3. **Data Mono**: `Geist Mono` (via `@fontsource/geist-mono`) — Tabular figures for file sizes, dimensions, percentages, and chapter markers.
-
-### Type Hierarchy
-| Level | Font | Size (Clamp) | Tracking | Leading | Role |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Headline Hero** | Instrument Serif | `clamp(56px, 9vw, 150px)` | `-0.03em` | `0.92` | "Raw power. Zero trace." |
-| **Chapter Title** | Instrument Serif | `clamp(40px, 6vw, 96px)` | `-0.02em` | `0.98` | Chapter headlines |
-| **Numeral Index** | Geist Mono | `clamp(18px, 2.5vw, 36px)` | `0.1em` | `1.0` | `01`, `02`, `07` |
-| **Body Narrative** | Geist Sans | `clamp(15px, 1.2vw, 18px)` | `-0.01em` | `1.6` | Narrative subtitles |
-| **Button / Chip** | Geist Sans | `13px` / `14px` | `0.02em` | `1.2` | Action triggers, badges |
-| **Metric Telemetry**| Geist Mono | `13px` | `0.04em` | `1.0` | `8.4 MB → 640 KB` |
+When a user drops, pastes, or loads an image on the home screen:
+1. **Intake Animation**: Center photo planes open and transition to display the uploaded image.
+2. **File Analysis**: `suggestToolsForFile(file)` evaluates MIME type, payload size, dimensions, and EXIF flags.
+3. **Orbit Re-Sorting**: The top 3 recommended tools automatically glide to the front of the inner ring with an illuminated **"Suggested for this image"** pulsing badge.
+4. **Instant Launch**: One click launches the chosen tool with the image already pre-loaded.
 
 ---
 
-## 4. Motion Choreography & Named Physics
+## 4. Mobile & Responsive Layout (`< 768px`)
 
-All kinetic motion adheres to three physics models:
-
-```css
-/* Named Cubic-Bezier Easings */
---ease-cinematic: cubic-bezier(0.16, 1, 0.3, 1);    /* Smooth camera & page wipes */
---ease-snappy: cubic-bezier(0.25, 1, 0.5, 1);       /* Cursor rings, card pulls */
---ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);  /* Badge snaps, drop triggers */
-```
-
-### Durations & Scrubbing
-- **Smooth Scroll (Lenis)**: `lerp: 0.08`, `duration: 1.2s`, `wheelMultiplier: 0.9`. Respects touch inertia and OS trackpads.
-- **ScrollTrigger Timelines**: 100% scrubbed against viewport progress (`scrub: 0.8`), ensuring bidirectional perfection (scrolling up reverses the animation identically).
-- **Page Route Transitions**: `600ms` full-screen dual-tone shutter curtain (`#0d0d12` sliding over `#d4ff3a` hairline).
-- **Hover Micro-interactions**: `180ms --ease-snappy` for cursor growth, letter rolling, and button magnetics.
+- Viewport locked to `100dvh` (`overflow: hidden`).
+- Orbit radius scaled adaptively so all interactive nodes remain easily tappable (minimum 44x44px touch targets).
+- Quick switch to 2D List View available via prominent top pill.
+- Touch drag rotates the orbit manually with momentum physics.
 
 ---
 
-## 5. Chapter-by-Chapter Storyboard
+## 5. Performance Budgets & Fallbacks
 
-### Chapter 00: Opening & Hero (0 to 100% Preloader → Studio Rise)
-- **Visual**: Minimal progress line across bottom (0% → 100%), with monospace counter ticking up. Resolves within 400ms if assets are ready, capped strictly at 1.5s.
-- **Transition**: Line expands into full-width razor wire, text fades in via masked vertical rise (`transform: translateY(100%) → translateY(0%)`).
-- **3D Scene**: Three high-resolution floating image planes hover in perspective with gentle multi-axis harmonic drift (`sin(t * 0.8)`). Cursor position creates reactive 3D tilt. A volumetric pixel dust cloud (1,200 particle instances) floats in the background.
-- **Call-to-Action**: "Explore 20 Tools" pill button with magnetic pull + subtle "Scroll to inspect" mouse icon.
-
-### Chapter 01: Squeeze (Image Compression)
-- **Visual Metaphor**: The 3 photo planes coalesce into one, then compress violently inward along the Z and X axes into a dense, solid, crystalline block.
-- **Telemetry**: Monospace telemetry HUD animates from `8.4 MB` countdown to `640 KB` (`-92.4%`).
-- **Particles**: Compressed pixel dust explodes outward in ring geometry as the compression reaches maximum density.
-- **Action**: "Open Image Compressor →" routes directly to `/compress-image`.
-
-### Chapter 02: Framing (Smart Crop & Aspect Morph)
-- **Visual Metaphor**: Four illuminated golden corner crop reticles slide from the edges and snap onto the image plane.
-- **Morphing**: The image plane aspect ratio morphs seamlessly through standard formats: `1:1 (Square)` → `16:9 (Landscape)` → `9:16 (Story)`. The crop reticles track vertex coordinates in real time.
-- **Action**: "Open Image Cropper →" routes to `/crop-image`.
-
-### Chapter 03: Separation (Background Removal)
-- **Visual Metaphor**: The foreground subject elevates forward on the Z-axis (+2.0 units) into crisp silhouette focus.
-- **Dissolve**: The background plate breaks down into an alpha noise grid, dissolving into floating holographic particles that scatter into the void.
-- **Action**: "Open Background Remover →" routes to `/remove-background`.
-
-### Chapter 04: Synthesis (Image to PDF & Multi-page Binder)
-- **Visual Metaphor**: Multiple scattered photo plates fly into a neat vertical stack. A paper fold distortion bends the sheets, binding them into an elegant 3D PDF document folio that flips its cover toward the viewer.
-- **Action**: "Open Image to PDF →" routes to `/image-to-pdf`.
-
-### Chapter 05: Inscription (OCR Text Extraction)
-- **Visual Metaphor**: A glowing horizontal laser beam (electric cyan) sweeps vertically across the image document.
-- **Typographic Flight**: As the beam scans pixels, 3D extruded monospace characters (`A`, `9`, `&`, `K`, `0`) detach from the surface, fly toward the camera, and assemble into formatted digital text strings.
-- **Action**: "Open OCR Extractor →" routes to `/extract-text`.
-
-### Chapter 06: Zero-Knowledge (EXIF Sanitization & Privacy)
-- **Visual Metaphor**: Floating metadata badges (`GPS: 37.7749° N`, `Camera: Sony A7R IV`, `Date: 2026:10:31`) hover around the photo. An iridescent spherical forcefield envelopes the photo plane; the metadata tags peel off like burnt foil and disintegrate into thin smoke.
-- **Headline**: *"Nothing leaves your machine. Ever."*
-- **Action**: "Open EXIF Cleaner →" routes to `/clean-exif`.
-
-### Chapter 07: Manifestation (3D Device Mockups)
-- **Visual Metaphor**: A photorealistic extruded 3D smartphone frame (iPhone vector geometry) sweeps into center view. The processed image snaps perfectly onto its OLED glass display. The phone rotates 45 degrees along the Y-axis to showcase bezel reflections and real-time shadows.
-- **Action**: "Open Mockup Generator →" routes to `/device-mockup`.
-
-### Chapter 08: The Constellation (3D Tool Galaxy & Accessible Grid)
-- **Visual Metaphor**: The camera accelerates backward (`z: 5 → 24`), revealing all 20 tools as an interactive constellation of 3D floating glass cards arranged in a curved cylindrical amphitheater.
-- **Interaction**: Cursor hover pulls the target tool tile forward with specular highlight and dims non-hovered tiles. Clicking initiates a camera zoom into the tile and triggers the page transition into the tool.
-- **Semantic Twin**: A fully accessible, screen-reader friendly HTML filterable grid with keyboard navigation, search bar, and Cmd/Ctrl+K command palette is integrated directly below.
-
----
-
-## 6. ASCII Wireframes
-
-### 6.1 Hero Section
-```
-+-----------------------------------------------------------------------+
-| [IK] IMAGEKIT PRO            [Cmd+K Search]   [Reduce FX] [Theme]     |
-|-----------------------------------------------------------------------|
-|                                                                       |
-|     ( 3D VOLUMETRIC SCENE: Floating Photo Stack + Pixel Dust )        |
-|                                                                       |
-|                     Raw power. Zero trace.                            |
-|             20 studio image tools running 100% in your browser.       |
-|                                                                       |
-|                 [ Explore All Tools ]     (↓ Scroll)                  |
-|                                                                       |
-| [======================================] 100% PRIVATE CLIENT-SIDE    |
-+-----------------------------------------------------------------------+
-```
-
-### 6.2 Scroll Chapter Layout (Pinned Viewport)
-```
-+-----------------------------------------------------------------------+
-| (01/07)                                                               |
-|                                                                       |
-|  01                                                                   |
-|  INSTANT                                                              |
-|  SQUEEZE.             +-------------------------------+               |
-|                       |   [3D Interactive Canvas]     |               |
-|  8.4 MB → 640 KB      |   Photo compressing into      |   o (01)      |
-|  No artifacting.      |   dense crystal cube with     |   . (02)      |
-|                       |   bursting pixel dust         |   . (03)      |
-|  [Open Compressor →]  |                               |   . (04)      |
-|                       +-------------------------------+               |
-|                                                                       |
-+-----------------------------------------------------------------------+
-```
-
-### 6.3 Tool Field (Constellation / Grid)
-```
-+-----------------------------------------------------------------------+
-|  THE SUITE                                                            |
-|  20 precision tools. Select any to begin.                             |
-|  [All] [Essentials] [Edit] [PDF] [Privacy] [Design] [Social]          |
-|                                                                       |
-|  +--------------------+  +--------------------+  +-----------------+  |
-|  | [Icon] Compressor  |  | [Icon] Resizer     |  | [Icon] Remover  |  |
-|  | Shrink JPEG/PNG    |  | Scale any preset   |  | AI cutout       |  |
-|  +--------------------+  +--------------------+  +-----------------+  |
-|  +--------------------+  +--------------------+  +-----------------+  |
-|  | [Icon] Cropper     |  | [Icon] PDF to Img  |  | [Icon] Inpaint  |  |
-|  | Aspect lock crops  |  | Convert PDF pages  |  | Erase watermarks|  |
-|  +--------------------+  +--------------------+  +-----------------+  |
-+-----------------------------------------------------------------------+
-```
-
-### 6.4 Tool Workspace Page
-```
-+-----------------------------------------------------------------------+
-| [← Home] [Icon] Image Compressor        [Chain To...] [Reset]         |
-|-----------------------------------------------------------------------|
-| CONTROL RAIL (340px)        | CENTER WORKSPACE CANVAS                 |
-|                             |                                         |
-| File: photo-sample.jpg      | +-------------------------------------+ |
-| Original: 3840x2160 (4.2 MB)| |                                     | |
-| Target:   WebP @ 82%        | |   [ Checkerboard Stage with Zoom ]  | |
-|                             | |                                     | |
-| [Quality Slider: 82%]       | |   [ Before / After Compare Split ]  | |
-| [Format: WebP | PNG | JPG]  | |                                     | |
-|                             | +-------------------------------------+ |
-| Savings: -78% (920 KB)      |                                         |
-|-----------------------------------------------------------------------|
-| [ + Drop New Image ]        | [ Reset Canvas ]   [ Download Output ]  |
-+-----------------------------------------------------------------------+
-```
-
----
-
-## 7. Performance Budgets & Resilience
-
-1. **Strict Fallback Triggers**:
-   - WebGL context creation failure
-   - Low hardware concurrency (`navigator.hardwareConcurrency < 4`)
-   - Low device memory (`navigator.deviceMemory < 4`)
-   - User preference `prefers-reduced-motion: reduce`
-   - User clicks `Reduce effects` toggle (persisted in `localStorage`)
-   - Mobile screen width `< 768px`
-2. **Fallback Behavior**:
-   - Zero WebGL instances initialized.
-   - 3D canvas replaced with high-fidelity static layered illustrations with CSS parallax.
-   - Lenis smooth scroll disabled; native scroll preserved.
-3. **Resource Management**:
-   - Frameloop set to `demand` when viewport is idle.
-   - WebGL canvas unmounted / disposed during tool view active state to dedicate 100% of GPU/CPU resources to image processing algorithms (ONNX, Tesseract, Canvas 2D).
-   - Single global WebGL context (`WebGLRenderer.dispose()` cleanly on exit).
+- **Zero Scroll Hijacking**: Lenis and ScrollTrigger removed. Native event listeners handle pointer tilt and clicks.
+- **Initial JS Gzip**: `< 100 kB`.
+- **Three.js Chunking**: Isolated in `three-vendor` chunk; Canvas is lazy-loaded with a lightweight CSS skeleton for instant FCP (< 0.8s).
+- **GPU Cleanup**: WebGL canvas unmounts immediately when entering any tool workspace.

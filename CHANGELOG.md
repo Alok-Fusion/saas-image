@@ -2,6 +2,30 @@
 
 All notable changes and architectural enhancements to ImageKit Pro are documented here.
 
+## [2.1.0] - 2026-11-01
+
+### Award-Level Single-Screen 100dvh 3D Orbit Experience
+- **Zero Long Scroll Architecture**:
+  - Removed Lenis smooth scroll and ScrollTrigger scroll hijacking.
+  - The home page fits strictly within `100dvh` across both mobile and desktop with zero vertical scrollbars.
+  - Interaction model driven entirely by cursor tilt, pointer drag, and touch.
+- **Three-Layer Single-Screen Studio**:
+  - **Layer 1 (WebGL Studio Scene)**: Floating center 3D image stack with three-point studio lighting, harmonic drift, and 600 drifting pixel particles.
+  - **Layer 2 (Interactive 3D Tool Orbit)**: 20 tools distributed across 3 concentric rings (Essentials at radius 3.25, Edit & PDF at radius 4.85, Privacy/Design/Social/A11y at radius 6.45). Continuous gentle rotation that slows to 10% on hover, with hovered nodes scaling up and pulling forward (+1.2 Z).
+  - **Layer 3 (HTML UI Layer)**: Slim top bar with logo, category filter pills, search trigger (Cmd/Ctrl+K), "20s Tour" button, "List / 3D Orbit" view toggle, theme toggle, and privacy pill. Center display hero with Instrument Serif headline, subtext, and glass drop well with sample image shortcut.
+- **Drop-First Smart Intake & Re-Sorting**:
+  - Dropping or pasting an image opens the center 3D stack like an iris aperture and illuminates it.
+  - `suggestToolsForFile` evaluates file type, dimensions, and size to dynamically re-sort the orbit, gliding the most relevant tools to the front with an illuminated pulsing ring.
+- **Tool Hover Card with Live Micro-Previews**:
+  - Hovering any 3D node reveals a dedicated HUD inspector card featuring category badges, tool description, and live CSS/SVG micro-animations (e.g. compress box squeezing, crop brackets snapping, background cutout lifting off).
+- **20-Second Guided Tour**:
+  - Added an interactive guided camera glide through key tools with live subtitle cards and step indicators, skippable with Esc or click.
+- **Accessible 2D List Fallback**:
+  - Instant toggle to switch between the 3D Orbit and an accessible 2D grid with full keyboard navigation and favorite starring.
+- **Zero GPU Contention in Workspaces**:
+  - WebGL canvas unmounts immediately when entering any tool workspace, ensuring 100% device resources are dedicated to image processing.
+
+
 ## [1.0.0-pro] - 2026-10-31
 
 ### Phase 1: Bug Fixes & Reliability

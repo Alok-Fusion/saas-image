@@ -1,18 +1,18 @@
 <div align="center">
   <h1>✨ ImageKit Pro</h1>
   <p>
-    <strong>Award-Level Cinematic Creative Suite · 20 Client-Side Image Tools</strong>
+    <strong>Single-Screen 100dvh 3D Orbit Experience · 20 Client-Side Image Tools</strong>
   </p>
   <p>
     <img src="https://img.shields.io/badge/Privacy-100%25%20In--Browser-success?style=for-the-badge&logo=shield" alt="Privacy First" />
     <img src="https://img.shields.io/badge/Tools-20%20Precision%20Instruments-blue?style=for-the-badge&logo=tools" alt="20 Tools" />
-    <img src="https://img.shields.io/badge/3D%20Experience-Three.js%20%2B%20GSAP-black?style=for-the-badge&logo=three.js" alt="3D Immersive" />
-    <img src="https://img.shields.io/badge/Initial%20JS-22.4%20kB%20gzip-d4ff3a?style=for-the-badge&color=282833&labelColor=0d0d12" alt="Bundle Size" />
+    <img src="https://img.shields.io/badge/3D%20Experience-Three.js%20Orbit-black?style=for-the-badge&logo=three.js" alt="3D Orbit" />
+    <img src="https://img.shields.io/badge/Initial%20JS-21.0%20kB%20gzip-d4ff3a?style=for-the-badge&color=282833&labelColor=0d0d12" alt="Bundle Size" />
     <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   </p>
   
   <p>
-    <em>A cinematic, scroll-driven visual journey where visitors experience 3D transformations before diving into 20 private, instant browser utilities.</em>
+    <em>A cinematic, single-screen 3D creative instrument. Zero long scrolling. Instant speed to action: drop an image in &lt; 2 seconds, inside a working tool in &lt; 2 clicks.</em>
   </p>
 
   <p>
@@ -22,100 +22,113 @@
 
 ---
 
-## 🌟 The Cinematic Front Door (Awwwards / FWA Experience)
+## 🌟 The Single-Screen 3D Orbit Experience
 
-ImageKit Pro features an immersive, scroll-choreographed 3D experience powered by **Three.js**, **@react-three/fiber**, **GSAP ScrollTrigger**, and **Lenis** smooth scrolling:
+ImageKit Pro replaces long, fatigue-inducing scrolling pages with an **instantaneous single-screen 3D creative instrument** (`100dvh`):
 
 ```
-[00 Intro]       Floating photo stack in dark studio with volumetric rim lighting & cursor parallax
-      ↓
-[01 Squeeze]     Stack compresses into a dense crystal block; telemetry countdown 8.4 MB → 640 KB
-      ↓
-[02 Framing]     Golden crop reticles snap to coordinates; aspect ratio morphs 1:1 → 16:9 → 9:16
-      ↓
-[03 Separation]  Subject elevates on Z-axis (+1.8 units); background dissolves into noise particles
-      ↓
-[04 Synthesis]   Images fold and stack into a neat 3D PDF binder folio
-      ↓
-[05 Inscription] Electric cyan laser sweeps down; 3D characters fly off the document surface
-      ↓
-[06 Zero Trace]  Iridescent forcefield wraps photo; GPS & camera EXIF tags peel off and dissipate
-      ↓
-[07 Stage]       Photo lands onto a 3D smartphone OLED glass display, rotating with perspective
-      ↓
-[Constellation]  Camera accelerates back to reveal all 20 tools as interactive floating 3D tiles
++----------------------------------------------------------------------------------------------------+
+|  LAYER 3: HTML UI (Top Bar: Logo | Category Chips | Search Cmd+K | Tour | List View | FX | Theme)  |
+|                                                                                                    |
+|                                       Fast, private image tools.                                   |
+|                          20 precision client-side utilities. Zero server uploads.                  |
+|                                                                                                    |
+|                     +-------------------------------------------------------+                      |
+|                     |        [↑] Drop an image, paste, or click to start     |                      |
+|                     |                   Try a sample image                  |                      |
+|                     +-------------------------------------------------------+                      |
+|                                                                                                    |
+|         LAYER 2: 3D TOOL ORBIT (20 Category-Colored Nodes in 3 Concentric Rings)                   |
+|                    (Hover -> Pull forward, slow orbit, dim rest, show mini-demo)                   |
+|                                                                                                    |
+|         LAYER 1: WEBGL STUDIO SCENE (Floating Center Photo Stack + 600 Pixel Dust Particles)       |
+|                                                                                                    |
+|  LAYER 3: HTML FOOTER (Single Thin Line: MIT License · Alok Kushwaha · 100% In-Browser Privacy)   |
++----------------------------------------------------------------------------------------------------+
 ```
+
+### Three Concentric Orbit Rings
+- **Inner Ring (Radius 3.25)**: Core Essentials (`Compressor`, `Resizer`, `Background Remover`, `Comparison Slider`).
+- **Middle Ring (Radius 4.85)**: Edit & PDF (`Cropper`, `Rotator`, `Watermark Adder`, `Watermark Remover`, `Image to PDF`, `PDF to Image`).
+- **Outer Ring (Radius 6.45)**: Privacy, Design, Social & A11y (`EXIF Cleaner`, `Duplicate Finder`, `OCR Text Extractor`, `Device Mockup`, `Color Palette`, `ASCII Art`, `Thumbnail Maker`, `Instagram Grid`, `Favicon`, `Color Blindness`).
+
+### Drop-First Flow & Smart Re-Sorting
+- **Aperture Opening**: Dropping or pasting an image on home causes the center 3D stack to open like an iris and emit an electric glow.
+- **Smart Analysis**: `suggestToolsForFile(file)` detects format, size, and dimensions.
+- **Dynamic Glide**: The top suggested tools smoothly glide to the front of the orbit with an illuminated pulsing badge for instant 1-click launch.
+
+### Guided 20-Second Tour
+- Click **"20s Tour"** in the top bar to watch the camera glide smoothly through key tools with live micro-preview cards and captions. Esc or click exits immediately.
+
+### Accessible 2D List Fallback
+- Click **"List View"** to swap the 3D canvas for a full accessible 2D grid of all 20 tools with instant keyboard navigation, category filtering, and favorite starring.
 
 ---
 
 ## ⚡ Performance & Zero-Compromise Fallback
 
-- **Sub-25 kB Initial Gzip Payload**: The entire 3D WebGL engine and Three.js runtime are strictly dynamic-imported (`React.lazy`) after the first contentful paint.
-- **Automatic Capability Detection**: Systems with `prefers-reduced-motion`, low memory (`< 4 GB`), low concurrency (`< 4 threads`), or mobile viewports automatically render the high-contrast CSS fallback without loading the 3D pipeline.
-- **Manual "Minimal FX" Toggle**: Visitors can switch between full 3D and reduced effects at any time via the header toggle.
-- **Zero Background GPU Leaks**: The WebGL canvas is automatically unmounted and its contexts released when a tool is opened, dedicating 100% of device resources to local image algorithms.
+- **Sub-22 kB Initial Gzip Payload**: The Three.js WebGL engine is strictly code-split (`React.lazy`) and loads asynchronously after the initial paint.
+- **Automatic Capability Detection**: Systems with `prefers-reduced-motion`, low memory (`< 4 GB`), low concurrency (`< 4 threads`), or mobile viewports can toggle between 3D Orbit and 2D List View at any time.
+- **Zero Background GPU Leaks**: The WebGL canvas unmounts immediately when entering any tool workspace, dedicating 100% of GPU and memory to processing your image.
+- **100% Local Privacy Guarantee**: All image operations run in browser memory using Web Workers, Canvas, and WebAssembly. No photos are ever uploaded.
 
 ---
 
 ## 🛠️ The 20 In-Browser Precision Tools
 
-All 20 tools operate **100% locally in your browser** with zero uploads, zero tracking, and absolute privacy.
-
-### ⭐ Core Essentials
-| Tool | Route | Description |
-|:--- |:--- |:--- |
-| **📦 Image Compressor** | `/compress-image` | High-fidelity JPEG, PNG, and WebP compression with real-time savings telemetry. |
-| **📱 Social Media Resizer** | `/resize-image` | Batch presets for Instagram, YouTube, LinkedIn, X, and Facebook with cover/contain modes. |
-| **🎭 Background Remover** | `/remove-background` | Client-side neural network cutout running via ONNX WebAssembly. |
-| **↔️ Comparison Slider** | `/image-comparison` | Touch and keyboard split-view comparison slider with transparency backplate. |
+### 📦 Essentials
+1. **Image Compressor**: High-efficiency compression for JPEG, PNG, and WebP with real-time preview and size savings counter.
+2. **Social Media Resizer**: Export to exact dimensions for Instagram, YouTube, LinkedIn, X/Twitter, and Facebook.
+3. **Background Remover**: Local AI model isolates subjects in seconds with zero server dependencies.
+4. **Image Comparison Slider**: Interactive split-pane before/after slider with synced zoom.
 
 ### ✂️ Edit & Transform
-| Tool | Route | Description |
-|:--- |:--- |:--- |
-| **✂️ Image Cropper** | `/crop-image` | Draggable rule-of-thirds grid with 8 locked aspect ratio presets. |
-| **🔄 Image Rotator** | `/rotate-image` | 90°/180° step rotation, continuous 0–360° slider, and horizontal/vertical flipping. |
-| **© Watermark Adder** | `/watermark` | Custom text watermarks with 5 placement points, opacity, and live preview. |
-| **🧹 Watermark Remover** | `/remove-watermark` | Interactive marquee eraser powered by Inpaint, Blur, or Pixelate algorithms. |
+5. **Image Cropper**: Precision crop with golden ratio, 1:1, 16:9, and custom aspect ratios.
+6. **Image Rotator**: Lossless 90°/180° rotation and horizontal/vertical flip.
+7. **Watermark Adder**: Custom text stamps with opacity, font, position, and rotation angle.
+8. **Watermark Remover**: Intelligent multi-pass inpainting to erase unwanted stamps and logos.
 
-### 📄 PDF Utilities
-| Tool | Route | Description |
-|:--- |:--- |:--- |
-| **📄 Image to PDF** | `/image-to-pdf` | Multi-image sequencing, page ordering, margins, and A4/Letter/Fit sheet binding. |
-| **📑 PDF to Image** | `/pdf-to-image` | Multi-page PDF rasterizer with 1x/2x/3x scale and bulk ZIP export. |
+### 📄 PDF Suite
+9. **Image to PDF**: Combine multiple photos into a single paginated, print-ready PDF document.
+10. **PDF to Image**: Render multi-page PDF documents into individual high-resolution PNGs.
 
-### 🔒 Privacy & Security
-| Tool | Route | Description |
-|:--- |:--- |:--- |
-| **🔐 EXIF Cleaner** | `/remove-exif` | Deep tag inspector and one-click stripper for GPS coordinates and hardware serials. |
-| **🔍 Duplicate Finder** | `/duplicate-finder` | Perceptual 64-bit difference hashing offloaded to multi-core Web Workers. |
-| **📝 OCR Extractor** | `/image-to-text` | Tesseract.js client-side text extractor supporting 12+ international languages. |
+### 🛡️ Privacy & Security
+11. **EXIF Privacy Cleaner**: Permanently scrub GPS coordinates, camera serials, and device metadata.
+12. **Duplicate Finder**: Perceptual dHash algorithm to locate identical or similar photos.
+13. **OCR Text Extractor**: Offline optical character recognition supporting 12 languages.
 
-### 🎨 Design & Social
-| Tool | Route | Description |
-|:--- |:--- |:--- |
-| **🎬 Thumbnail Maker** | `/thumbnail-maker` | Canvas studio for YouTube, Instagram, and Twitter graphics with emoji stickers. |
-| **🎨 Palette Extractor** | `/color-palette` | Dominant color cluster extraction with HEX, RGB, and CSS variable copying. |
-| **📱 Device Mockup** | `/device-mockup` | Vector device frames (iPhone 14 Pro, SE, Android, MacBook, iPad, iMac). |
-| **🖌️ ASCII Art** | `/ascii-art` | Retro terminal generator with standard, complex, and block character sets. |
-| **📸 Instagram Grid** | `/instagram-grid` | 3x1, 3x2, and 3x3 profile tile splitter with direct ZIP packaging. |
-| **🖼️ Favicon Generator** | `/favicon-generator` | Multi-resolution `.ico`, PNG matrix, `manifest.json`, and HTML `<head>` snippets. |
-| **👁️ Color Blindness** | `/color-blindness` | Fast 8-mode simulation of protanopia, deuteranopia, tritanopia, and more. |
+### 🎨 Design, Social & Accessibility
+14. **Device Mockup Generator**: Frame screenshots in photorealistic iPhone, iPad, and MacBook hardware.
+15. **Color Palette Extractor**: Extract dominant swatches with copyable HEX, RGB, and CSS gradient code.
+16. **ASCII Art Generator**: Convert images into stylish terminal-ready monospace text art.
+17. **Thumbnail Maker**: Design click-worthy social thumbnails with banners, badges, and text.
+18. **Instagram Grid Splitter**: Slice panoramic images into 3×3, 3×2, or 3×1 carousel tiles.
+19. **Favicon Generator**: Create complete cross-platform favicon packages with `manifest.json`.
+20. **Color Blindness Simulator**: Preview designs under protanopia, deuteranopia, and tritanopia color filters.
 
 ---
 
-## 💻 Tech Stack & Architecture
+## 🚀 Development & Verification
 
-- **Framework**: React 18 + TypeScript + Vite 6
-- **Typography**: Self-hosted `Instrument Serif` (Display), `Geist Sans` (UI), `Geist Mono` (Data)
-- **3D & Kinetic Engine**: `Three.js`, `@react-three/fiber`, `GSAP` + `ScrollTrigger`, `Lenis`
-- **Client-Side AI/ML**: `@imgly/background-removal`, `onnxruntime-web`, `tesseract.js`
-- **PDF Engine**: `pdfjs-dist` (bundled worker), `jspdf`, `pdf-lib`
-- **Offline & PWA**: Workbox Service Worker, SSG Prerendering of all 20 routes
+```bash
+# Install dependencies
+npm install
+
+# Type check
+npm run typecheck
+
+# Lint check
+npm run lint
+
+# Run unit tests
+npm test
+
+# Build production bundle & prerender static HTML routes
+npm run build
+```
 
 ---
 
-## 🔒 Absolute Privacy Guarantee
+## 📄 License
 
-> **Your Files Never Leave Your Device.**
-
-ImageKit Pro executes all image transformations strictly within browser client memory (Canvas API, OffscreenCanvas, and Web Workers). There are **no remote APIs, no server uploads, no analytics trackers, and no third-party CDNs**.
+MIT © [Alok Kushwaha](https://github.com/Alok-Fusion). Free for personal and commercial use.
