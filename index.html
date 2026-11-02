@@ -94,6 +94,22 @@
       }
     })();
   </script>
+
+  <!-- Cookie-free Privacy Analytics (Active only when token configured) -->
+  <script>
+    (function () {
+      try {
+        var token = window.__CF_BEACON_TOKEN__;
+        if (token) {
+          var s = document.createElement('script');
+          s.defer = true;
+          s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+          s.setAttribute('data-cf-beacon', '{"token": "' + token + '"}');
+          document.head.appendChild(s);
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 
 <body>
