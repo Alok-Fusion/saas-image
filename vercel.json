@@ -1,19 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.imagekitpro.cc"
-        }
-      ],
-      "destination": "https://imagekitpro.cc/$1",
-      "permanent": true
-    }
-  ],
   "rewrites": [
     {
       "source": "/((?!assets/|.*\\..*).*)",
