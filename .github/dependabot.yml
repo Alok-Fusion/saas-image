@@ -36,6 +36,12 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "vite-react-ssg"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "onnxruntime-web"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "@react-three/fiber"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@react-three/drei"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
