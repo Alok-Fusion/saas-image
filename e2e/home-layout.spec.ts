@@ -35,3 +35,4 @@ test.describe('Home Page Single-Screen Layout', () => {
         expect(htmlTheme).toMatch(/^(dark|light)$/)
     })
 })
+

@@ -45,3 +45,4 @@ test.describe('Tool Pages Responsive Functionality', () => {
         })
     }
 })
+

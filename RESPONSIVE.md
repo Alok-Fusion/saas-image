@@ -149,3 +149,4 @@ Use this checklist when validating on physical devices:
 - [ ] **Desktop Browser Zoom (Ctrl + to 200%)**:
   - [ ] Content reflows without text overlapping or horizontal scrollbars.
   - [ ] Color contrast passes WCAG AA (4.5:1 text, 3:1 UI boundaries).
+
