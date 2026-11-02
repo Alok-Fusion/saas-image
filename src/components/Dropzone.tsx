@@ -1,4 +1,4 @@
-import { UploadCloud } from 'lucide-react'
+import { UploadCloud, Camera } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { IMAGE_ACCEPT_ATTRIBUTE, validateFiles } from '../utils/fileIntake'
 import { useToast } from './Toast'
@@ -13,6 +13,7 @@ interface DropzoneProps {
     hint?: string
     disabled?: boolean
     enablePaste?: boolean
+    enableCamera?: boolean
     onTrySample?: () => void
     children?: ReactNode
     className?: string
@@ -28,6 +29,7 @@ export default function Dropzone({
     hint,
     disabled = false,
     enablePaste = true,
+    enableCamera = true,
     onTrySample,
     children,
     className = '',
@@ -35,6 +37,7 @@ export default function Dropzone({
     const [isDragging, setIsDragging] = useState(false)
     const [isChecking, setIsChecking] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
+    const cameraInputRef = useRef<HTMLInputElement>(null)
     const { error } = useToast()
 
     const handleFiles = useCallback(
@@ -115,19 +118,35 @@ export default function Dropzone({
                 <p className="dropzone-text">{isChecking ? 'Checking file…' : title}</p>
                 {hint && <p className="dropzone-hint">{hint}</p>}
 
-                {onTrySample && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            onTrySample()
-                        }}
-                        className="btn btn-secondary btn-sm"
-                        style={{ marginTop: 'var(--spacing-3)' }}
-                    >
-                        Try with a sample image
-                    </button>
-                )}
+                <div className="dropzone-actions-row" style={{ display: 'flex', gap: 'var(--spacing-2)', marginTop: 'var(--spacing-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {enableCamera && kind === 'image' && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                cameraInputRef.current?.click()
+                            }}
+                            className="btn btn-secondary btn-sm"
+                            aria-label="Take photo with camera"
+                        >
+                            <Camera size={14} />
+                            <span>Take Photo</span>
+                        </button>
+                    )}
+
+                    {onTrySample && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onTrySample()
+                            }}
+                            className="btn btn-secondary btn-sm"
+                        >
+                            Try sample image
+                        </button>
+                    )}
+                </div>
 
                 {children}
             </div>
@@ -142,6 +161,19 @@ export default function Dropzone({
                 }}
                 style={{ display: 'none' }}
             />
+            {enableCamera && kind === 'image' && (
+                <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(event) => {
+                        void handleFiles(event.target.files)
+                        event.target.value = ''
+                    }}
+                    style={{ display: 'none' }}
+                />
+            )}
         </div>
     )
 }

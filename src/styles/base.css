@@ -20,10 +20,13 @@ html {
     font-size: 16px;
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    height: 100%;
 }
 
 body {
     min-height: 100vh;
+    min-height: 100dvh;
     background-color: var(--color-bg-app);
     color: var(--color-text-primary);
     font-family: var(--font-sans);
@@ -33,6 +36,8 @@ body {
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     overflow-x: hidden;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(212, 255, 58, 0.12);
 }
 
 img,
@@ -41,14 +46,60 @@ video,
 canvas {
     display: block;
     max-width: 100%;
+    height: auto;
 }
 
+/* Ensure no form controls force iOS Safari zoom (must be >= 16px on mobile) */
 input,
 button,
 textarea,
 select {
     font: inherit;
     color: inherit;
+    font-size: max(16px, 1rem);
+    touch-action: manipulation;
+}
+
+@media (min-width: 768px) {
+    input,
+    button,
+    textarea,
+    select {
+        font-size: var(--font-size-sm);
+    }
+}
+
+/* Minimum 44x44px touch targets on coarse pointer devices */
+@media (pointer: coarse) {
+    button,
+    a,
+    input[type="button"],
+    input[type="submit"],
+    input[type="checkbox"],
+    input[type="radio"],
+    .btn,
+    .fav-star-btn,
+    .tool-card,
+    .orbit-action-pill-btn,
+    .workspace-back-btn,
+    .chain-chip {
+        min-height: var(--touch-target-min, 44px);
+    }
+
+    .fav-star-btn {
+        min-width: var(--touch-target-min, 44px);
+        min-height: var(--touch-target-min, 44px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* Hover effects only on fine pointer (mouse/trackpad), prevented on touch */
+@media (hover: hover) and (pointer: fine) {
+    .hover-lift:hover {
+        transform: translateY(-2px);
+    }
 }
 
 button {

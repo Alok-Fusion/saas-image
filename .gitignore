@@ -25,6 +25,8 @@ lerna-debug.log*
 # Testing & Coverage
 coverage/
 .vitest/
+playwright-report/
+test-results/
 
 # Editor & OS files
 .DS_Store

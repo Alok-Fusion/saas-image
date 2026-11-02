@@ -12,6 +12,7 @@ import WorkspaceLayout from '../components/WorkspaceLayout'
 import { useObjectUrl } from '../hooks/useObjectUrl'
 import { downloadBlob, getImageInfo, type ImageInfo } from '../utils/imageProcessing'
 import { createSampleImage } from '../utils/sampleImage'
+import { isMeteredConnection } from '../utils/capabilities'
 
 interface OcrExtractorProps {
     onBack: () => void
@@ -186,6 +187,11 @@ export default function OcrExtractor({ onBack, initialFile }: OcrExtractorProps)
                         </option>
                     ))}
                 </select>
+                {isMeteredConnection() && (
+                    <p style={{ fontSize: '11px', color: 'var(--color-warning)', marginTop: '6px' }}>
+                        Metered connection detected: OCR language model will download once and cache locally.
+                    </p>
+                )}
             </ControlGroup>
 
             {isProcessing && (

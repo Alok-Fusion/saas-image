@@ -61,3 +61,4 @@ await writeFile(resolve(publicDir, 'sitemap.xml'), sitemapXml, 'utf8');
 await writeFile(resolve(publicDir, 'robots.txt'), robotsTxt, 'utf8');
 
 console.log(`Generated public/sitemap.xml with ${urls.length} URLs and public/robots.txt`);
+

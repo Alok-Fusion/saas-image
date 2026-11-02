@@ -243,35 +243,210 @@
 }
 
 /* --------------------------------------------------------------------------
-   Mobile Adaptations (< 1024px)
+   Desktop / Tablet Rail Collapse & Expand
    -------------------------------------------------------------------------- */
-@media (max-width: 1023px) {
-    .workspace-body {
-        flex-direction: column;
+.rail-top-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: var(--spacing-3);
+}
+
+.rail-collapse-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    font-weight: var(--font-weight-medium);
+    border: 1px solid var(--color-border-subtle);
+    background-color: var(--color-bg-subtle);
+    transition: all var(--transition-fast);
+}
+
+.rail-collapse-btn:hover {
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-surface-elevated);
+    border-color: var(--color-border-strong);
+}
+
+.workspace-rail.is-collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border-right: none !important;
+}
+
+.canvas-rail-toggle-btn {
+    position: absolute;
+    top: var(--spacing-4);
+    left: var(--spacing-4);
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--color-bg-surface-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.canvas-rail-toggle-btn:hover {
+    background-color: var(--color-bg-subtle);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Draggable Bottom Sheet (< 768px)
+   -------------------------------------------------------------------------- */
+.workspace-mobile-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: calc(var(--z-sticky) - 1);
+    background-color: var(--color-bg-surface);
+    border-top: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    transition: max-height 0.28s var(--ease-cinematic);
+    will-change: max-height;
+    overflow: hidden;
+}
+
+.workspace-mobile-sheet.snap-peek {
+    max-height: 48px;
+}
+
+.workspace-mobile-sheet.snap-half {
+    max-height: 46vh;
+}
+
+.workspace-mobile-sheet.snap-full {
+    max-height: calc(100dvh - 54px - 60px);
+}
+
+.sheet-handle-bar {
+    width: 100%;
+    padding: 8px 16px 10px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    background-color: var(--color-bg-surface);
+    border-bottom: 1px solid var(--color-border-subtle);
+    touch-action: none;
+    user-select: none;
+}
+
+.sheet-drag-pill {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--color-border-strong);
+}
+
+.sheet-handle-info {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.sheet-handle-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.sheet-handle-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-accent);
+    font-weight: var(--font-weight-medium);
+}
+
+.sheet-body-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--spacing-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+/* Canvas viewport spacing when bottom sheet snaps */
+.workspace-canvas-viewport.sheet-snap-peek {
+    padding-bottom: 70px;
+}
+
+.workspace-canvas-viewport.sheet-snap-half {
+    padding-bottom: 48vh;
+}
+
+.workspace-canvas-viewport.sheet-snap-full {
+    padding-bottom: 80vh;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Adaptations (< 768px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+    .workspace-topbar {
+        height: var(--workspace-topbar-height, 46px);
+        padding: 0 var(--spacing-4);
+        padding-top: var(--safe-top);
     }
 
     .workspace-rail {
-        width: 100%;
-        max-height: none;
-        border-right: none;
-        border-top: 1px solid var(--color-border-subtle);
+        display: none !important;
     }
 
     .workspace-canvas-wrap {
-        min-height: 340px;
+        min-height: 260px;
+        flex: 1;
+    }
+
+    .workspace-canvas-viewport {
+        padding: var(--spacing-3);
     }
 
     .workspace-actionbar {
-        position: sticky;
+        position: fixed;
         bottom: 0;
-        padding-bottom: calc(var(--spacing-3) + env(safe-area-inset-bottom, 0px));
+        left: 0;
+        right: 0;
+        z-index: var(--z-sticky);
+        padding: var(--spacing-3) var(--spacing-4);
+        padding-bottom: calc(var(--spacing-3) + var(--safe-bottom));
         flex-direction: column;
         align-items: stretch;
+        gap: var(--spacing-2);
+        box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.4);
     }
 
     .actionbar-left {
-        justify-content: space-between;
         width: 100%;
+        justify-content: space-around;
+        gap: var(--spacing-2);
     }
 
     .actionbar-right {
@@ -281,6 +456,44 @@
 
     .actionbar-right .btn {
         flex: 1;
+        min-height: 44px;
+    }
+
+    .canvas-float-bar {
+        top: var(--spacing-2);
+        right: var(--spacing-2);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Tablet Adaptations (768px - 1023px)
+   -------------------------------------------------------------------------- */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .workspace-rail {
+        width: 290px;
+        padding: var(--spacing-4);
+    }
+
+    .workspace-actionbar {
+        padding: var(--spacing-3) var(--spacing-4);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Large Screens & Ultrawide (>= 1920px & 3440px)
+   -------------------------------------------------------------------------- */
+@media (min-width: 1920px) {
+    .workspace-rail {
+        width: 400px;
+        padding: var(--spacing-8);
+    }
+
+    .workspace-canvas-viewport {
+        padding: var(--spacing-10);
+    }
+
+    .workspace-canvas-preview {
+        max-height: calc(100dvh - 54px - 48px - 160px);
     }
 }
 

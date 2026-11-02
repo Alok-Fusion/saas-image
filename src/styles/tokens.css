@@ -23,15 +23,41 @@
     --ease-snappy: cubic-bezier(0.25, 1, 0.5, 1);
     --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    /* Typography Scale */
-    --font-size-xs: 0.725rem;    /* 11.6px */
-    --font-size-sm: 0.8125rem;   /* 13px */
-    --font-size-base: 0.875rem;  /* 14px */
-    --font-size-md: 1rem;        /* 16px */
-    --font-size-lg: 1.125rem;    /* 18px */
-    --font-size-xl: 1.375rem;    /* 22px */
-    --font-size-2xl: 1.75rem;    /* 28px */
-    --font-size-3xl: 2.25rem;    /* 36px */
+    /* Breakpoint Design Tokens (xs 360, sm 480, md 768, lg 1024, xl 1440, 2xl 1920) */
+    --bp-xs: 360px;
+    --bp-sm: 480px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1440px;
+    --bp-2xl: 1920px;
+
+    /* Viewport & Safe Area Dimensions */
+    --vh-fallback: 100vh;
+    --app-height: 100dvh;
+    --header-height: clamp(48px, 6vh, 54px);
+    --workspace-topbar-height: clamp(44px, 5vh, 48px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+
+    /* Touch & Input Target Sizing */
+    --touch-target-min: 44px;
+    --touch-target-gap: 8px;
+
+    /* Fluid Typography Scale (clamp-based, mobile-first) */
+    --font-size-xs: clamp(0.725rem, 0.7rem + 0.15vw, 0.775rem);   /* 11.6px - 12.4px */
+    --font-size-sm: clamp(0.8125rem, 0.78rem + 0.2vw, 0.875rem);  /* 13px - 14px */
+    --font-size-base: clamp(0.9375rem, 0.9rem + 0.25vw, 1rem);    /* 15px - 16px */
+    --font-size-md: clamp(1rem, 0.96rem + 0.3vw, 1.125rem);       /* 16px - 18px */
+    --font-size-lg: clamp(1.125rem, 1.05rem + 0.4vw, 1.25rem);    /* 18px - 20px */
+    --font-size-xl: clamp(1.25rem, 1.15rem + 0.6vw, 1.5rem);      /* 20px - 24px */
+    --font-size-2xl: clamp(1.5rem, 1.35rem + 0.9vw, 1.875rem);    /* 24px - 30px */
+    --font-size-3xl: clamp(1.875rem, 1.6rem + 1.4vw, 2.5rem);     /* 30px - 40px */
+
+    /* Typography constraints */
+    --content-max-width: 1440px;
+    --reading-max-width: 72ch;
 
     --font-weight-normal: 400;
     --font-weight-medium: 500;
@@ -42,17 +68,17 @@
     --line-height-normal: 1.45;
     --line-height-relaxed: 1.6;
 
-    /* 4px Spacing Grid */
-    --spacing-1: 0.25rem;   /* 4px */
-    --spacing-2: 0.5rem;    /* 8px */
-    --spacing-3: 0.75rem;   /* 12px */
-    --spacing-4: 1rem;      /* 16px */
-    --spacing-5: 1.25rem;   /* 20px */
-    --spacing-6: 1.5rem;    /* 24px */
-    --spacing-8: 2rem;      /* 32px */
-    --spacing-10: 2.5rem;   /* 40px */
-    --spacing-12: 3rem;     /* 48px */
-    --spacing-16: 4rem;     /* 64px */
+    /* Fluid 4px Spacing Grid */
+    --spacing-1: clamp(0.25rem, 0.22rem + 0.1vw, 0.3125rem);  /* 4px - 5px */
+    --spacing-2: clamp(0.4375rem, 0.4rem + 0.15vw, 0.5rem);   /* 7px - 8px */
+    --spacing-3: clamp(0.625rem, 0.58rem + 0.2vw, 0.75rem);   /* 10px - 12px */
+    --spacing-4: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);      /* 14px - 16px */
+    --spacing-5: clamp(1rem, 0.95rem + 0.4vw, 1.25rem);       /* 16px - 20px */
+    --spacing-6: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);     /* 20px - 24px */
+    --spacing-8: clamp(1.5rem, 1.35rem + 0.8vw, 2rem);        /* 24px - 32px */
+    --spacing-10: clamp(2rem, 1.75rem + 1.2vw, 2.5rem);       /* 32px - 40px */
+    --spacing-12: clamp(2.5rem, 2.2rem + 1.5vw, 3rem);        /* 40px - 48px */
+    --spacing-16: clamp(3rem, 2.6rem + 2vw, 4rem);            /* 48px - 64px */
 
     /* Legacy mapping */
     --spacing-xs: var(--spacing-1);

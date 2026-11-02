@@ -119,3 +119,4 @@ export const FaqSchema: React.FC<{ faqs: FaqItem[]; toolSlug: string }> = ({ faq
     />
   );
 };
+

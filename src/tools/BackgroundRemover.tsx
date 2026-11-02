@@ -20,6 +20,7 @@ import {
     type ImageInfo,
 } from '../utils/imageProcessing'
 import { getSampleImageFile } from '../utils/sampleImage'
+import { isMeteredConnection } from '../utils/capabilities'
 
 interface BackgroundRemoverProps {
     onBack: () => void
@@ -227,6 +228,11 @@ export default function BackgroundRemover({
 
             <div className="rail-section">
                 <span className="rail-section-title">AI Isolation</span>
+                {isMeteredConnection() && !processedBlob && (
+                    <div style={{ fontSize: '11px', color: 'var(--color-warning)', padding: '6px 10px', background: 'rgba(234, 179, 8, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(234, 179, 8, 0.25)', marginBottom: 'var(--spacing-2)' }}>
+                        Metered connection detected. Model download (~30 MB) runs once and is cached offline.
+                    </div>
+                )}
                 {!processedBlob ? (
                     <Button
                         variant="primary"

@@ -1,11 +1,12 @@
 import React, { useRef, useEffect, useCallback } from 'react'
-import { Sparkles, Search, Play, Grid, Box, Upload, ArrowRight, Sun, Moon, Star } from 'lucide-react'
+import { Sparkles, Search, Play, Grid, Box, Upload, ArrowRight, Sun, Moon, Star, Camera } from 'lucide-react'
 import { useScene } from '../scene/sceneContext'
 import { getSampleImageFile } from '../../utils/sampleImage'
 import { suggestToolsForFile } from '../../utils/toolSuggestions'
 import ToolHoverCard from './ToolHoverCard'
 import GuidedTourOverlay from './GuidedTourOverlay'
 import { ORBIT_TOOLS, OrbitToolDefinition } from '../../constants/orbitTools'
+import { useBreakpoint } from '../../hooks/useBreakpoint'
 
 export interface ToolItemDef {
     id: string
@@ -55,6 +56,8 @@ export const HomeOrbitView: React.FC<HomeOrbitViewProps> = ({
     onToggleTheme,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const cameraInputRef = useRef<HTMLInputElement>(null)
+    const { isMobile, breakpoint } = useBreakpoint()
     const {
         selectedCategory,
         setSelectedCategory,
@@ -216,12 +219,22 @@ export const HomeOrbitView: React.FC<HomeOrbitViewProps> = ({
             : allTools.filter((t) => t.category === selectedCategory)
 
     return (
-        <div className="home-orbit-shell">
-            {/* Hidden native file input */}
+        <div className={`home-orbit-shell ${isMobile ? 'is-mobile-home' : ''}`}>
+            {/* Hidden native file input for media library */}
             <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*,application/pdf"
+                style={{ display: 'none' }}
+                onChange={handleFileInputChange}
+            />
+
+            {/* Hidden native file input for direct camera capture */}
+            <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
                 style={{ display: 'none' }}
                 onChange={handleFileInputChange}
             />
@@ -242,19 +255,21 @@ export const HomeOrbitView: React.FC<HomeOrbitViewProps> = ({
                         <span className="orbit-brand-badge">PRO</span>
                     </button>
 
-                    {/* Category Filter Chips (filtering 3D orbit illumination) */}
-                    <nav className="orbit-categories-nav" aria-label="Tool categories">
-                        {categoriesList.map((cat) => (
-                            <button
-                                key={cat.key}
-                                type="button"
-                                className={`orbit-cat-chip ${selectedCategory === cat.key ? 'is-active' : ''}`}
-                                onClick={() => setSelectedCategory(cat.key)}
-                            >
-                                {cat.label}
-                            </button>
-                        ))}
-                    </nav>
+                    {/* Category Filter Chips (on desktop / tablet) */}
+                    {!isMobile && (
+                        <nav className="orbit-categories-nav" aria-label="Tool categories">
+                            {categoriesList.map((cat) => (
+                                <button
+                                    key={cat.key}
+                                    type="button"
+                                    className={`orbit-cat-chip ${selectedCategory === cat.key ? 'is-active' : ''}`}
+                                    onClick={() => setSelectedCategory(cat.key)}
+                                >
+                                    {cat.label}
+                                </button>
+                            ))}
+                        </nav>
+                    )}
                 </div>
 
                 <div className="orbit-topbar-right">
@@ -265,42 +280,47 @@ export const HomeOrbitView: React.FC<HomeOrbitViewProps> = ({
                         onClick={onOpenSearch}
                         aria-label="Search tools (Ctrl+K)"
                     >
-                        <Search size={13} />
-                        <span>Search</span>
-                        <kbd style={{ fontSize: '10px', opacity: 0.6 }}>⌘K</kbd>
+                        <Search size={14} />
+                        <span className="search-btn-text">{isMobile ? 'Search' : 'Search tools'}</span>
+                        {!isMobile && <kbd style={{ fontSize: '10px', opacity: 0.6 }}>⌘K</kbd>}
                     </button>
 
-                    {/* 20-Second Guided Tour */}
-                    <button
-                        type="button"
-                        className="orbit-action-pill-btn tour-btn"
-                        onClick={() => setIsTourActive(true)}
-                        aria-label="Watch 20-second guided tour"
-                    >
-                        <Play size={12} fill="currentColor" />
-                        <span>20s Tour</span>
-                    </button>
+                    {/* Desktop/Tablet-only buttons */}
+                    {!isMobile && (
+                        <>
+                            {/* 20-Second Guided Tour */}
+                            <button
+                                type="button"
+                                className="orbit-action-pill-btn tour-btn"
+                                onClick={() => setIsTourActive(true)}
+                                aria-label="Watch 20-second guided tour"
+                            >
+                                <Play size={12} fill="currentColor" />
+                                <span>20s Tour</span>
+                            </button>
 
-                    {/* 3D Orbit / 2D List View Toggle */}
-                    <button
-                        type="button"
-                        className="orbit-action-pill-btn"
-                        onClick={() => setViewMode(viewMode === '3d' ? 'list' : '3d')}
-                        aria-label={viewMode === '3d' ? 'Switch to 2D list view' : 'Switch to 3D orbit'}
-                    >
-                        {viewMode === '3d' ? <Grid size={13} /> : <Box size={13} />}
-                        <span>{viewMode === '3d' ? 'List View' : '3D Orbit'}</span>
-                    </button>
+                            {/* 3D Orbit / 2D List View Toggle */}
+                            <button
+                                type="button"
+                                className="orbit-action-pill-btn"
+                                onClick={() => setViewMode(viewMode === '3d' ? 'list' : '3d')}
+                                aria-label={viewMode === '3d' ? 'Switch to 2D list view' : 'Switch to 3D orbit'}
+                            >
+                                {viewMode === '3d' ? <Grid size={13} /> : <Box size={13} />}
+                                <span>{viewMode === '3d' ? 'List View' : '3D Orbit'}</span>
+                            </button>
 
-                    {/* Minimal FX Toggle */}
-                    <button
-                        type="button"
-                        className="orbit-action-pill-btn"
-                        onClick={onToggle3D}
-                        aria-label={is3DEnabled ? 'Disable 3D effects' : 'Enable 3D effects'}
-                    >
-                        <span>{is3DEnabled ? '3D Active' : 'Minimal FX'}</span>
-                    </button>
+                            {/* Minimal FX Toggle */}
+                            <button
+                                type="button"
+                                className="orbit-action-pill-btn"
+                                onClick={onToggle3D}
+                                aria-label={is3DEnabled ? 'Disable 3D effects' : 'Enable 3D effects'}
+                            >
+                                <span>{is3DEnabled ? '3D Active' : 'Minimal FX'}</span>
+                            </button>
+                        </>
+                    )}
 
                     {/* Theme Toggle */}
                     <button
@@ -309,13 +329,115 @@ export const HomeOrbitView: React.FC<HomeOrbitViewProps> = ({
                         onClick={onToggleTheme}
                         aria-label="Toggle theme"
                     >
-                        {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+                        {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
                     </button>
                 </div>
             </header>
 
-            {/* Center Hero & Drop Target (3D Orbit Mode) */}
-            {viewMode === '3d' && (
+            {/* Mobile View: Dedicated Compact 100dvh UI with Drop Button & Scrollable Grid */}
+            {isMobile ? (
+                <div className="orbit-mobile-shell">
+                    {/* Compact Hero & Drop Intake */}
+                    <div className="orbit-mobile-hero">
+                        <h1 className="orbit-mobile-headline">Fast, private image tools.</h1>
+                        <p className="orbit-mobile-subtext">20 in-browser utilities · Zero uploads</p>
+
+                        {/* Full-width Big Drop Target Button */}
+                        <div className="orbit-mobile-drop-wrap">
+                            <button
+                                type="button"
+                                className="orbit-mobile-choose-btn"
+                                onClick={() => fileInputRef.current?.click()}
+                                aria-label="Choose or drop an image"
+                            >
+                                <Upload size={18} />
+                                <span>Choose or drop an image</span>
+                            </button>
+
+                            <div className="orbit-mobile-subactions">
+                                <button
+                                    type="button"
+                                    className="orbit-mobile-sub-btn"
+                                    onClick={() => cameraInputRef.current?.click()}
+                                    aria-label="Take a photo with camera"
+                                >
+                                    <Camera size={14} />
+                                    <span>Take Photo</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="orbit-mobile-sub-btn"
+                                    onClick={handleSampleClick}
+                                    aria-label="Try with sample image"
+                                >
+                                    <Sparkles size={14} color="var(--color-electric-lime)" />
+                                    <span>Try Sample</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Category Filter Chips on Mobile (horizontal scrolling) */}
+                        <nav className="orbit-categories-nav mobile-chips" aria-label="Tool categories">
+                            {categoriesList.map((cat) => (
+                                <button
+                                    key={cat.key}
+                                    type="button"
+                                    className={`orbit-cat-chip ${selectedCategory === cat.key ? 'is-active' : ''}`}
+                                    onClick={() => setSelectedCategory(cat.key)}
+                                >
+                                    {cat.label}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+
+                    {/* Scrollable Tool Grid (2 cols on phones, 1 col < 360px) */}
+                    <div
+                        className={`orbit-mobile-tools-scroll ${breakpoint === 'xs' ? 'cols-1' : 'cols-2'}`}
+                        role="region"
+                        aria-label="All tools grid"
+                    >
+                        <div className="orbit-mobile-tools-grid">
+                            {filteredTools.map((t) => (
+                                <div
+                                    key={t.id}
+                                    className="orbit-mobile-card"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => onSelectTool(t.id)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault()
+                                            onSelectTool(t.id)
+                                        }
+                                    }}
+                                >
+                                    <div className="orbit-mobile-card-top">
+                                        <div className="orbit-mobile-card-icon">{t.icon}</div>
+                                        <button
+                                            type="button"
+                                            className={`fav-star-btn ${isFavorite(t.id) ? 'is-favorite' : ''}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                toggleFavorite(t.id)
+                                            }}
+                                            aria-label={
+                                                isFavorite(t.id)
+                                                    ? `Remove ${t.title} from favorites`
+                                                    : `Add ${t.title} to favorites`
+                                            }
+                                        >
+                                            <Star size={14} fill={isFavorite(t.id) ? 'currentColor' : 'none'} />
+                                        </button>
+                                    </div>
+                                    <h2 className="orbit-mobile-card-title">{t.title}</h2>
+                                    <p className="orbit-mobile-card-desc">{t.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            ) : viewMode === '3d' ? (
                 <div className="orbit-hero-container">
                     <h1 className="orbit-hero-headline">Fast, private image tools.</h1>
                     <p className="orbit-hero-subtext">
@@ -384,7 +506,7 @@ export const HomeOrbitView: React.FC<HomeOrbitViewProps> = ({
                         </div>
                     )}
                 </div>
-            )}
+            ) : null}
 
             {/* Accessible 2D List / Grid View Fallback (When toggled or on low-power) */}
             {viewMode === 'list' && (
@@ -451,11 +573,11 @@ export const HomeOrbitView: React.FC<HomeOrbitViewProps> = ({
                 </div>
             )}
 
-            {/* 3D Orbit Tool Hover Card (Inspector) */}
-            {viewMode === '3d' && <ToolHoverCard onOpenTool={onSelectTool} />}
+            {/* 3D Orbit Tool Hover Card (Inspector on Desktop/Tablet only) */}
+            {!isMobile && viewMode === '3d' && <ToolHoverCard onOpenTool={onSelectTool} />}
 
-            {/* Guided 20-Second Tour Overlay */}
-            <GuidedTourOverlay onSelectTool={onSelectTool} />
+            {/* Guided 20-Second Tour Overlay (Desktop/Tablet) */}
+            {!isMobile && <GuidedTourOverlay onSelectTool={onSelectTool} />}
 
             {/* Footer */}
             <footer className="orbit-footer">

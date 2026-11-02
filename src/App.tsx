@@ -3,6 +3,7 @@ import CommandPalette from './components/CommandPalette'
 import CustomCursor from './components/CustomCursor'
 import ErrorBoundary from './components/ErrorBoundary'
 import FileActionChooser from './components/FileActionChooser'
+import InstallPrompt from './components/InstallPrompt'
 import Preloader from './components/Preloader'
 import RouteTransition from './components/RouteTransition'
 import { SceneProvider } from './components/scene/SceneProvider'
@@ -544,6 +545,9 @@ function App() {
                     onSelectTool={handleChooserSelect}
                     onClose={() => setDroppedFile(null)}
                 />
+
+                {/* PWA Smart Install Prompt (only after completing a task) */}
+                <InstallPrompt />
             </div>
         </SceneProvider>
     )

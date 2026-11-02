@@ -40,6 +40,19 @@ export function setStoredReduceEffects(value: boolean): void {
     }
 }
 
+export function isMeteredConnection(): boolean {
+    if (typeof navigator === 'undefined') return false
+    const nav = navigator as Navigator & {
+        connection?: {
+            saveData?: boolean
+            effectiveType?: string
+        }
+    }
+    const conn = nav.connection
+    if (!conn) return false
+    return Boolean(conn.saveData || conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g' || conn.effectiveType === '3g')
+}
+
 export function getDeviceCapabilities(): DeviceCapabilities {
     if (typeof window === 'undefined') {
         return {

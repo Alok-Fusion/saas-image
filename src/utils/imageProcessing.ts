@@ -287,17 +287,77 @@ export async function applyBackground(
 }
 
 /**
- * Download a blob as a file
+ * Maximum canvas dimensions on mobile/iOS browsers to prevent memory crashes
  */
-export function downloadBlob(blob: Blob, filename: string): void {
+export const IOS_MAX_CANVAS_AREA = 16_777_216 // 4096 x 4096
+export const MOBILE_PREVIEW_MAX_DIM = 2048
+
+export function clampDimensionsForDevice(
+    width: number,
+    height: number,
+    isMobile = false
+): { width: number; height: number; scaled: boolean } {
+    const area = width * height
+    const maxDim = isMobile ? MOBILE_PREVIEW_MAX_DIM : 8192
+    if (area <= IOS_MAX_CANVAS_AREA && width <= maxDim && height <= maxDim) {
+        return { width, height, scaled: false }
+    }
+    const ratio = width / height
+    let newWidth = width
+    let newHeight = height
+    if (width > maxDim || height > maxDim) {
+        if (width > height) {
+            newWidth = maxDim
+            newHeight = Math.round(maxDim / ratio)
+        } else {
+            newHeight = maxDim
+            newWidth = Math.round(maxDim * ratio)
+        }
+    }
+    return { width: newWidth, height: newHeight, scaled: true }
+}
+
+/**
+ * Download a blob as a file.
+ * On mobile/touch browsers, uses the Web Share API (navigator.share({ files }))
+ * as primary path for direct saving to camera roll / Photos, with standard anchor
+ * download fallback and new tab fallback.
+ */
+export async function downloadBlob(blob: Blob, filename: string, title?: string): Promise<void> {
+    const isTouch = typeof window !== 'undefined' && (
+        window.matchMedia('(pointer: coarse)').matches ||
+        /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    )
+
+    if (isTouch && typeof navigator !== 'undefined' && 'canShare' in navigator && navigator.canShare) {
+        try {
+            const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' })
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: title || filename,
+                })
+                return
+            }
+        } catch (err: unknown) {
+            if ((err as Error)?.name === 'AbortError') return
+        }
+    }
+
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    try {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.style.display = 'none'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+    } catch {
+        window.open(url, '_blank')
+    } finally {
+        setTimeout(() => URL.revokeObjectURL(url), 4000)
+    }
 }
 
 /**
