@@ -89,7 +89,9 @@ saas/
 ├── public/
 │   ├── sitemap.xml              # [NEW] Tool URLs for Google indexing
 │   ├── robots.txt               # [NEW] Crawler directives
-│   └── vite.svg                 # Favicon
+│   ├── favicon.svg              # Favicon
+│   ├── favicon.ico              # Multi-resolution Favicon
+│   ├── manifest.webmanifest     # PWA Manifest
 │
 ├── src/
 │   ├── main.tsx                 # React entry point
