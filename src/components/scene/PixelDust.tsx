@@ -7,7 +7,7 @@ interface PixelDustProps {
     count?: number
 }
 
-// Deterministic Pseudo-Random Number Generator (Mulberry32) for pure idempotent renders
+// Deterministic Pseudo-Random Number Generator (Mulberry32)
 function mulberry32(seed: number) {
     let s = seed
     return function () {
@@ -19,25 +19,29 @@ function mulberry32(seed: number) {
     }
 }
 
-export const PixelDust: React.FC<PixelDustProps> = ({ count = 900 }) => {
+export const PixelDust: React.FC<PixelDustProps> = ({ count = 600 }) => {
     const pointsRef = useRef<THREE.Points>(null)
-    const { scrollProgress, isPaused } = useScene()
+    const { isPaused, isDraggingFile, hoveredToolId } = useScene()
 
     const [positions, initialPositions, colors] = useMemo(() => {
-        const random = mulberry32(1337)
+        const random = mulberry32(42)
         const pos = new Float32Array(count * 3)
         const initPos = new Float32Array(count * 3)
         const col = new Float32Array(count * 3)
 
+        const indigo = new THREE.Color('#6366f1')
+        const cyan = new THREE.Color('#38bdf8')
         const lime = new THREE.Color('#d4ff3a')
-        const cyan = new THREE.Color('#00f0ff')
         const white = new THREE.Color('#ffffff')
 
         for (let i = 0; i < count; i++) {
             const i3 = i * 3
-            const x = (random() - 0.5) * 22
-            const y = (random() - 0.5) * 16
-            const z = (random() - 0.5) * 16
+            // Distribute in a spherical cylinder envelope around orbit
+            const radius = 3.0 + random() * 6.5
+            const theta = random() * Math.PI * 2
+            const x = Math.cos(theta) * radius
+            const z = Math.sin(theta) * radius - 1.0
+            const y = (random() - 0.5) * 8.0
 
             pos[i3] = x
             pos[i3 + 1] = y
@@ -48,7 +52,7 @@ export const PixelDust: React.FC<PixelDustProps> = ({ count = 900 }) => {
             initPos[i3 + 2] = z
 
             const rVal = random()
-            const mixed = rVal < 0.6 ? lime : rVal < 0.85 ? cyan : white
+            const mixed = rVal < 0.45 ? indigo : rVal < 0.75 ? cyan : rVal < 0.9 ? lime : white
             col[i3] = mixed.r
             col[i3 + 1] = mixed.g
             col[i3 + 2] = mixed.b
@@ -63,11 +67,7 @@ export const PixelDust: React.FC<PixelDustProps> = ({ count = 900 }) => {
         const geom = pointsRef.current.geometry
         const posAttr = geom.attributes.position
 
-        // Burst factor during compress chapter (progress around 0.12 to 0.28)
-        const isCompressing = scrollProgress >= 0.10 && scrollProgress <= 0.28
-        const compressIntensity = isCompressing
-            ? Math.sin(((scrollProgress - 0.10) / 0.18) * Math.PI) * 2.5
-            : 0
+        const expansion = isDraggingFile ? 1.4 : hoveredToolId ? 1.08 : 1.0
 
         for (let i = 0; i < count; i++) {
             const i3 = i * 3
@@ -75,22 +75,17 @@ export const PixelDust: React.FC<PixelDustProps> = ({ count = 900 }) => {
             const origY = initialPositions[i3 + 1]
             const origZ = initialPositions[i3 + 2]
 
-            // Subtle harmonic orbital drift
-            const driftX = Math.sin(time * 0.4 + origY) * 0.15
-            const driftY = Math.cos(time * 0.3 + origX) * 0.15
+            // Gentle harmonic orbital drift
+            const driftX = Math.sin(time * 0.35 + origY * 0.5) * 0.12
+            const driftY = Math.cos(time * 0.3 + origX * 0.5) * 0.12
+            const driftZ = Math.sin(time * 0.25 + origX * 0.3) * 0.08
 
-            if (compressIntensity > 0) {
-                // Expanding kinetic shockwave ring
-                const angle = Math.atan2(origY, origX)
-                posAttr.setXYZ(
-                    i,
-                    origX + Math.cos(angle) * compressIntensity * 2.0 + driftX,
-                    origY + Math.sin(angle) * compressIntensity * 2.0 + driftY,
-                    origZ + (i % 2 === 0 ? 0.5 : -0.5) * compressIntensity
-                )
-            } else {
-                posAttr.setXYZ(i, origX + driftX, origY + driftY, origZ)
-            }
+            posAttr.setXYZ(
+                i,
+                origX * expansion + driftX,
+                origY * expansion + driftY,
+                origZ * expansion + driftZ
+            )
         }
         posAttr.needsUpdate = true
     })
@@ -100,18 +95,23 @@ export const PixelDust: React.FC<PixelDustProps> = ({ count = 900 }) => {
             <bufferGeometry>
                 <bufferAttribute
                     attach="attributes-position"
-                    args={[positions, 3]}
+                    count={positions.length / 3}
+                    array={positions}
+                    itemSize={3}
                 />
                 <bufferAttribute
                     attach="attributes-color"
-                    args={[colors, 3]}
+                    count={colors.length / 3}
+                    array={colors}
+                    itemSize={3}
                 />
             </bufferGeometry>
             <pointsMaterial
-                size={0.05}
+                size={0.045}
                 vertexColors
                 transparent
-                opacity={0.7}
+                opacity={0.65}
+                sizeAttenuation
                 blending={THREE.AdditiveBlending}
                 depthWrite={false}
             />

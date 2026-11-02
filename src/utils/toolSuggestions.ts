@@ -61,3 +61,27 @@ export function getToolSuggestions(currentTool: string): ToolSuggestion[] {
 export function getToolMeta(toolId: string) {
     return TOOL_META[toolId] || null
 }
+
+
+export function suggestToolsForFile(file: File): string[] {
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    if (isPdf) {
+        return ['pdf-to-image', 'image-to-pdf', 'ocr']
+    }
+
+    const isLarge = file.size > 1.5 * 1024 * 1024
+    if (isLarge) {
+        return ['compressor', 'resizer', 'cropper', 'exif-cleaner']
+    }
+
+    const type = file.type.toLowerCase()
+    if (type.includes('png')) {
+        return ['background-remover', 'compressor', 'cropper', 'favicon']
+    }
+
+    if (type.includes('jpeg') || type.includes('jpg')) {
+        return ['compressor', 'exif-cleaner', 'resizer', 'color-palette']
+    }
+
+    return ['compressor', 'cropper', 'background-remover', 'resizer']
+}

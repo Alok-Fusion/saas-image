@@ -1,30 +1,61 @@
 import React, { useState, useMemo } from 'react'
-import { SceneContext } from './sceneContext'
+import { SceneContext, SceneContextType } from './sceneContext'
 
 export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [scrollProgress, setScrollProgress] = useState(0)
-    const [activeChapter, setActiveChapter] = useState(0)
-    const [isPaused, setIsPaused] = useState(false)
     const [hoveredToolId, setHoveredToolId] = useState<string | null>(null)
+    const [selectedCategory, setSelectedCategory] = useState<string>('all')
+    const [suggestedTools, setSuggestedTools] = useState<string[]>([])
+    const [isTourActive, setIsTourActive] = useState<boolean>(false)
+    const [tourStep, setTourStep] = useState<number>(0)
+    const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false)
+    const [hasActiveFile, setHasActiveFile] = useState<boolean>(false)
+    const [activeImageSrc, setActiveImageSrc] = useState<string | null>(null)
     const [activeToolTransition, setActiveToolTransition] = useState<string | null>(null)
-    const [isLoaded, setIsLoaded] = useState(false)
+    const [isPaused, setIsPaused] = useState<boolean>(false)
+    const [viewMode, setViewMode] = useState<'3d' | 'list'>('3d')
+    const [orbitRotation, setOrbitRotation] = useState<number>(0)
 
-    const value = useMemo(
+    const value: SceneContextType = useMemo(
         () => ({
-            scrollProgress,
-            setScrollProgress,
-            activeChapter,
-            setActiveChapter,
-            isPaused,
-            setIsPaused,
             hoveredToolId,
             setHoveredToolId,
+            selectedCategory,
+            setSelectedCategory,
+            suggestedTools,
+            setSuggestedTools,
+            isTourActive,
+            setIsTourActive,
+            tourStep,
+            setTourStep,
+            isDraggingFile,
+            setIsDraggingFile,
+            hasActiveFile,
+            setHasActiveFile,
+            activeImageSrc,
+            setActiveImageSrc,
             activeToolTransition,
             setActiveToolTransition,
-            isLoaded,
-            setIsLoaded,
+            isPaused,
+            setIsPaused,
+            viewMode,
+            setViewMode,
+            orbitRotation,
+            setOrbitRotation,
         }),
-        [scrollProgress, activeChapter, isPaused, hoveredToolId, activeToolTransition, isLoaded]
+        [
+            hoveredToolId,
+            selectedCategory,
+            suggestedTools,
+            isTourActive,
+            tourStep,
+            isDraggingFile,
+            hasActiveFile,
+            activeImageSrc,
+            activeToolTransition,
+            isPaused,
+            viewMode,
+            orbitRotation,
+        ]
     )
 
     return <SceneContext.Provider value={value}>{children}</SceneContext.Provider>

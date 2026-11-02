@@ -1,30 +1,30 @@
 import React, { useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import StudioLighting from './StudioLighting'
 import PixelDust from './PixelDust'
-import PhotoStack from './PhotoStack'
-import ToolConstellation from './ToolConstellation'
+import CenterStack from './CenterStack'
+import ToolOrbit from './ToolOrbit'
 import { useScene } from './sceneContext'
 
 const CameraRig: React.FC = () => {
-    const { scrollProgress, isPaused } = useScene()
+    const { isPaused, activeToolTransition, isTourActive } = useScene()
+    const { pointer } = useThree()
 
     useFrame((state) => {
         if (isPaused) return
-        const p = scrollProgress
-        // Camera pulls back for Constellation chapter
-        let targetZ = 5.5
-        let targetY = 0
 
-        if (p >= 0.88) {
-            const norm = (p - 0.88) / 0.12
-            targetZ = THREE.MathUtils.lerp(5.5, 11.5, norm)
-            targetY = THREE.MathUtils.lerp(0, 0.5, norm)
-        }
+        // Smooth subtle cursor camera parallax
+        const targetX = pointer.x * 0.4
+        const targetY = 1.0 + pointer.y * 0.3
+        const targetZ = activeToolTransition ? 2.5 : isTourActive ? 7.0 : 8.2
 
-        state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.08)
-        state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.08)
+        state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.05)
+        state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.05)
+        state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.06)
+
+        // Always smoothly look towards center
+        state.camera.lookAt(0, 0, 0)
     })
 
     return null
@@ -35,11 +35,8 @@ interface ImmersiveCanvasProps {
 }
 
 export const ImmersiveCanvas: React.FC<ImmersiveCanvasProps> = ({ onSelectTool }) => {
-    const { isPaused, scrollProgress } = useScene()
+    const { isPaused } = useScene()
     const containerRef = useRef<HTMLDivElement>(null)
-
-    // Interactive pointer only when in tool constellation chapter
-    const isInteractive = scrollProgress >= 0.88
 
     return (
         <div
@@ -49,31 +46,30 @@ export const ImmersiveCanvas: React.FC<ImmersiveCanvasProps> = ({ onSelectTool }
                 position: 'fixed',
                 inset: 0,
                 zIndex: 0,
-                pointerEvents: isInteractive ? 'auto' : 'none',
+                pointerEvents: 'auto',
             }}
             aria-hidden="true"
         >
             <Canvas
-                camera={{ position: [0, 0, 5.5], fov: 45 }}
+                camera={{ position: [0, 1.0, 8.2], fov: 46 }}
                 dpr={[1, 1.5]}
                 gl={{
                     antialias: true,
-                    alpha: true,
+                    alpha: false,
                     powerPreference: 'high-performance',
                 }}
                 frameloop={isPaused ? 'never' : 'always'}
             >
                 <color attach="background" args={['#07070a']} />
-                <fogExp2 attach="fog" args={['#07070a', 0.035]} />
+                <fogExp2 attach="fog" args={['#07070a', 0.038]} />
                 <CameraRig />
                 <StudioLighting />
-                <PixelDust count={800} />
-                <PhotoStack />
-                <ToolConstellation onSelectTool={onSelectTool} />
+                <PixelDust count={600} />
+                <CenterStack />
+                <ToolOrbit onSelectTool={onSelectTool} />
             </Canvas>
         </div>
     )
 }
 
 export default ImmersiveCanvas
-
