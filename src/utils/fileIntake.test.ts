@@ -7,6 +7,8 @@ import {
     MAX_IMAGE_PIXELS,
     validateFiles,
     validateImageFile,
+    sanitizeSvg,
+    sanitizeFilename,
 } from './fileIntake'
 
 describe('fileIntake utils', () => {
@@ -89,6 +91,27 @@ describe('fileIntake utils', () => {
         it('has correct max limits', () => {
             expect(MAX_FILE_SIZE).toBe(50 * 1024 * 1024)
             expect(MAX_IMAGE_PIXELS).toBe(100_000_000)
+        })
+    })
+
+    describe('security sanitizers', () => {
+        it('strips script tags and onload handlers from SVGs', () => {
+            const maliciousSvg = `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle cx="5" cy="5" r="5" onload="evil()"/><text>Safe</text></svg>`
+            const sanitized = sanitizeSvg(maliciousSvg)
+            expect(sanitized).not.toContain('<script>')
+            expect(sanitized).not.toContain('alert(1)')
+            expect(sanitized).not.toContain('onload')
+            expect(sanitized).not.toContain('evil()')
+            expect(sanitized).toContain('<circle cx="5" cy="5" r="5"')
+            expect(sanitized).toContain('Safe')
+        })
+
+        it('sanitizes filenames by removing traversal and illegal characters', () => {
+            expect(sanitizeFilename('../../../etc/passwd.png')).toBe('etc_passwd.png')
+            expect(sanitizeFilename('..\\..\\windows\\system32.jpg')).toBe('windows_system32.jpg')
+            expect(sanitizeFilename('photo\0with\x00null.png')).toBe('photowithnull.png')
+            expect(sanitizeFilename('bad:name<test>?*.png')).toBe('badnametest.png')
+            expect(sanitizeFilename('')).toBe('image')
         })
     })
 })

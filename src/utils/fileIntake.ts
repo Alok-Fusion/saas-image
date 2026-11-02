@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify'
 import { getImageInfo } from './imageProcessing'
 
 export const MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -96,4 +97,36 @@ export async function validateFiles(
     }
 
     return { valid, errors }
+}
+
+/**
+ * Strips script tags, onerror/onload attributes, foreignObject, and malicious payload
+ * from raw SVG content before parsing or DOM rendering.
+ */
+export function sanitizeSvg(rawSvg: string): string {
+    return DOMPurify.sanitize(rawSvg, {
+        USE_PROFILES: { svg: true, svgFilters: true },
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'href'],
+    })
+}
+
+/**
+ * Strips path traversal characters (../, ..\), null bytes, and non-printable control characters
+ * from user download filenames.
+ */
+export function sanitizeFilename(name: string, fallback = 'image'): string {
+    if (!name || typeof name !== 'string') return fallback
+    const noControlChars = Array.from(name)
+        .filter((ch) => {
+            const code = ch.charCodeAt(0)
+            return code >= 32 && code !== 127
+        })
+        .join('')
+    const cleaned = noControlChars
+        .replace(/\.\.+[/\\]/g, '') // remove directory traversal (../, ..\)
+        .replace(/[/\\]/g, '_') // replace directory separators
+        .replace(/[<>:"|?*]/g, '') // remove Windows reserved characters
+        .trim()
+    return cleaned.length > 0 ? cleaned.slice(0, 120) : fallback
 }
