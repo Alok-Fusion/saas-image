@@ -363,8 +363,8 @@ const TOOLS = [
     },
     {
         id: 'ascii-art',
-        path: 'ascii-art-generator',
-        legacyAliases: ['ascii-art'],
+        path: 'image-to-ascii-art',
+        legacyAliases: ['ascii-art', 'ascii-art-generator'],
         title: 'ASCII Art Generator — Convert Photos to Text Art | ImageKit Pro',
         desc: 'Convert photos to retro ASCII text art in your browser. Customize character sets, inverted shades, and export as text or PNG.',
         h1: 'ASCII Art Generator — Convert Images to Retro Text Art',
@@ -885,12 +885,14 @@ for (const page of TRUST_PAGES) {
     pageCount++
 }
 
-// 5. Generate 404.html
+// 5. Generate 404.html with noindex
 const notFoundHtml = injectMeta(baseTemplate, {
     title: '404: Page Not Found | ImageKit Pro',
     desc: 'The requested tool or page could not be found. Explore 20 free in-browser image tools on ImageKit Pro.',
     url: `${SITE_URL}/404`,
-}).replace(
+})
+    .replace('</head>', '  <meta name="robots" content="noindex, follow" />\n</head>')
+    .replace(
     '<div id="root"></div>',
     `<div id="root">
         <main class="main-container" style="padding:4rem 1rem;text-align:center;max-width:700px;margin:0 auto">

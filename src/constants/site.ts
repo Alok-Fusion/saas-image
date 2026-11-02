@@ -10,3 +10,4 @@ export function getCanonicalUrl(path: string = '/'): string {
     const normalized = path.startsWith('/') ? path : `/${path}`
     return `${SITE_URL}${normalized === '/' ? '/' : normalized}`
 }
+

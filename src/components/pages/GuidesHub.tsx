@@ -127,3 +127,4 @@ export const GuidesHub: React.FC<GuidesHubProps> = ({ onNavigate, onSelectTool }
 }
 
 export default GuidesHub
+

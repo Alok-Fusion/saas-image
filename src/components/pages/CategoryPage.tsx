@@ -195,3 +195,4 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({ slug, onSelectTool }
 }
 
 export default CategoryPage
+

@@ -752,7 +752,7 @@ export const TOOL_SEO_DATA: Record<string, ToolSeoData> = {
     },
     'ascii-art': {
         id: 'ascii-art',
-        canonicalPath: '/ascii-art-generator',
+        canonicalPath: '/image-to-ascii-art',
         keyword: 'convert image to ascii art online free',
         metaTitle: 'ASCII Art Generator Free - Convert Image to Text | ImageKit Pro',
         metaDescription: 'Convert images to stylized ASCII text art with customizable density, contrast, and color modes. Free, fast in-browser generator. Copy text with one click.',
@@ -1051,3 +1051,4 @@ export const TOOL_SEO_DATA: Record<string, ToolSeoData> = {
         ],
     },
 }
+

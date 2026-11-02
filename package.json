@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
+        "prebuild": "npx tsx scripts/generate-sitemap.ts",
         "build": "vite build && node scripts/prerender.mjs",
         "lint": "eslint .",
         "typecheck": "tsc --noEmit",
@@ -48,6 +49,7 @@
         "globals": "^17.13.0",
         "jsdom": "^29.1.1",
         "sharp": "^0.35.5",
+        "tsx": "^4.23.15",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.72.1",
         "vite": "^6.0.1",

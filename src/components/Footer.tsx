@@ -186,3 +186,4 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTool }) => {
 }
 
 export default Footer
+

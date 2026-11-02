@@ -1,25 +1,29 @@
 export interface GuideArticle {
-    slug: string
-    title: string
-    metaTitle: string
-    metaDescription: string
-    readTime: string
-    publishDate: string
-    primaryToolId: string
-    primaryToolCta: string
-    summary: string
-    contentHtml: string
+    slug: string;
+    title: string;
+    metaTitle: string;
+    metaDescription: string;
+    readTime: string;
+    publishDate: string;
+    primaryToolId: string;
+    primaryToolSlug: string;
+    primaryToolCta: string;
+    summary: string;
+    contentHtml: string;
+    aliases?: string[];
 }
 
 export const GUIDES: GuideArticle[] = [
     {
-        slug: 'how-to-compress-images-without-losing-quality',
-        title: 'How to Compress Images Without Losing Quality (Complete 2026 Guide)',
-        metaTitle: 'How to Compress Images Without Losing Quality | ImageKit Pro',
-        metaDescription: 'Learn how to reduce image file size by up to 90% without visible quality loss. Discover modern WebP encoding, lossy vs lossless, and free tools.',
+        slug: 'reduce-image-size-without-losing-quality',
+        aliases: ['how-to-compress-images-without-losing-quality'],
+        title: 'How to Reduce Image Size Without Losing Quality (2026 Guide)',
+        metaTitle: 'Reduce Image Size Without Losing Quality | ImageKit Pro',
+        metaDescription: 'Learn how to reduce image file size by up to 90% without visible quality loss. Discover modern WebP encoding, lossy vs lossless, and free browser tools.',
         readTime: '4 min read',
         publishDate: '2026-11-01',
         primaryToolId: 'compressor',
+        primaryToolSlug: 'compress-image',
         primaryToolCta: 'Compress Images Free in Browser',
         summary: 'Oversized images slow down website page speed, eat mobile data, and trigger email attachment size errors. Here is how modern compression algorithms reduce file sizes by up to 90% without degrading visual sharpness.',
         contentHtml: `
@@ -42,182 +46,182 @@ export const GUIDES: GuideArticle[] = [
         `,
     },
     {
-        slug: 'jpg-vs-png-vs-webp-best-format-websites',
+        slug: 'jpg-vs-png-vs-webp',
+        aliases: ['jpg-vs-png-vs-webp-best-format-websites'],
         title: 'JPG vs PNG vs WebP: Which Image Format is Best for Websites?',
         metaTitle: 'JPG vs PNG vs WebP: Best Image Format for Web (2026)',
         metaDescription: 'Compare JPG, PNG, and WebP for web performance, transparency, and SEO. Learn when to use each format for faster page speed and higher rankings.',
         readTime: '5 min read',
         publishDate: '2026-11-01',
         primaryToolId: 'compressor',
-        primaryToolCta: 'Convert & Compress Images',
-        summary: 'Choosing the wrong image format inflates web page weight and degrades SEO rankings. We compare JPEG, PNG, and WebP across compression efficiency, transparency, and browser support.',
+        primaryToolSlug: 'compress-image',
+        primaryToolCta: 'Convert & Optimize Images in Browser',
+        summary: 'Choosing the wrong image format inflates website weight and degrades user experience. Understand the technical trade-offs between JPG, PNG, and WebP.',
         contentHtml: `
-            <p>Images account for over 50% of the total byte weight on an average web page. Selecting the appropriate format directly impacts your Google Lighthouse Performance score and Core Web Vitals (LCP).</p>
+            <p>Selecting the right file extension is one of the highest-leverage optimizations for frontend web developers. Serving heavy uncompressed PNG files when WebP would suffice adds megabytes of unnecessary payload to every page load.</p>
+
+            <h2>Quick Comparison Table</h2>
+            <ul>
+                <li><strong>JPG / JPEG:</strong> Best for real-world photography without transparency. Universal browser support, lossy compression.</li>
+                <li><strong>PNG:</strong> Best for screenshots, illustrations, and logos with crisp vector-like edges and alpha transparency channels. Larger file sizes.</li>
+                <li><strong>WebP:</strong> The modern web standard developed by Google. Supports both lossy and lossless modes, alpha transparency, and delivers 25%–35% smaller sizes than JPG.</li>
+            </ul>
 
             <h2>When to Use WebP</h2>
-            <p>Supported by 97%+ of modern web browsers, WebP should be your default format for blog images, product catalogs, and marketing graphics. It supports both lossy compression and alpha transparency in a fraction of the file size of PNG.</p>
-
-            <h2>When to Use JPEG</h2>
-            <p>JPEG remains the gold standard for maximum backward compatibility with older email clients, legacy desktop software, and print preparation workflows.</p>
-
-            <h2>When to Use PNG</h2>
-            <p>PNG is best reserved for UI screenshots, diagrams with small text, logos, and graphics requiring crisp lines without compression ringing artifacts.</p>
+            <p>As of 2026, over 97% of global web browsers natively decode WebP. Modern web performance budgets mandate using WebP as the default format for storefront banners, hero backgrounds, and editorial pictures.</p>
         `,
     },
     {
-        slug: 'how-to-convert-jpg-to-pdf',
-        title: 'How to Convert JPG to PDF Online on Any Device (Without Software)',
-        metaTitle: 'How to Convert JPG to PDF Online Free (Any Device) | ImageKit Pro',
-        metaDescription: 'Convert multiple JPG, PNG, and WebP photos into a single paginated PDF document directly in your browser. Fast, private, and 100% free.',
+        slug: 'convert-jpg-to-pdf',
+        aliases: ['how-to-convert-jpg-to-pdf'],
+        title: 'How to Convert JPG to PDF for Free Without Uploading Documents',
+        metaTitle: 'Convert JPG to PDF Free & Private in Browser | ImageKit Pro',
+        metaDescription: 'Step-by-step tutorial on converting multiple JPG and PNG images into a single formatted PDF in your browser. 100% confidential and secure.',
         readTime: '3 min read',
         publishDate: '2026-11-01',
         primaryToolId: 'image-to-pdf',
-        primaryToolCta: 'Merge Images into PDF Free',
-        summary: 'Need to submit scanned receipts, identification cards, or project proofs as a single document? Here is how to compile photos into a professional PDF without installing software.',
+        primaryToolSlug: 'image-to-pdf',
+        primaryToolCta: 'Convert Images to PDF Free',
+        summary: 'Need to submit scanned tax records, medical receipts, or identity documents as a PDF? Here is how to combine multiple images into a single PDF without uploading them to cloud servers.',
         contentHtml: `
-            <p>Government portals, university application systems, and corporate accounting departments frequently reject loose image files, requiring submissions as a single unified PDF document.</p>
+            <p>Government agencies, universities, and corporate portals frequently require paperwork submitted as a single unified PDF document rather than separate image attachments.</p>
 
-            <h2>Why Client-Side Conversion is Safer</h2>
-            <p>Uploading sensitive documents like passports, driver licenses, or tax returns to random cloud conversion websites exposes you to identity theft and data leaks. ImageKit Pro merges your photos into a PDF locally within browser memory using jsPDF.</p>
+            <h2>Why Cloud PDF Converters are a Security Risk</h2>
+            <p>Most free online PDF converters transmit your uploaded files to third-party servers where they may be stored, indexed, or analyzed. When converting sensitive documents like bank statements, driver licenses, or signed contracts, cloud conversion creates serious privacy risks.</p>
 
-            <h2>How to Merge Images to PDF in 3 Steps</h2>
+            <h2>Converting Images Locally in Browser</h2>
+            <p>ImageKit Pro uses client-side JavaScript (jsPDF) running directly in your web browser tab. Documents are assembled in local RAM and exported directly to your Downloads folder without touching any remote API.</p>
+
             <ol>
-                <li>Open the <a href="/image-to-pdf">Image to PDF Converter</a>.</li>
-                <li>Drag and drop all your image pages into the builder.</li>
-                <li>Reorder the thumbnails into sequence and click "Convert to PDF".</li>
+                <li>Open the <a href="/image-to-pdf">Image to PDF tool</a>.</li>
+                <li>Drop all images you want to include in the document.</li>
+                <li>Drag tiles to rearrange page sequence.</li>
+                <li>Click <strong>Export PDF</strong> to instantly compile your document.</li>
             </ol>
         `,
     },
     {
-        slug: 'how-to-remove-exif-metadata',
-        title: 'How to Remove EXIF Metadata and GPS Location from Photos Before Sharing',
-        metaTitle: 'How to Remove EXIF Data & GPS from Photos (Privacy Guide)',
-        metaDescription: 'Learn how photos record hidden GPS location and device serials. Discover how to strip EXIF metadata before sharing online to protect your privacy.',
+        slug: 'remove-exif-data-before-sharing',
+        aliases: ['how-to-remove-exif-metadata'],
+        title: 'How to Remove EXIF Metadata and GPS Location from Photos',
+        metaTitle: 'Remove EXIF Metadata from Photos Free | ImageKit Pro',
+        metaDescription: 'Learn what EXIF data your smartphone embeds in photos and how to strip GPS location, camera serial numbers, and timestamps before sharing.',
         readTime: '4 min read',
         publishDate: '2026-11-01',
         primaryToolId: 'exif-cleaner',
-        primaryToolCta: 'Scrub Photo EXIF Data Now',
-        summary: 'Smartphone photos quietly embed your exact GPS coordinates, camera serial numbers, and timestamps. Learn how to scrub this private metadata before posting photos on marketplaces, social media, or forums.',
+        primaryToolSlug: 'remove-exif-data',
+        primaryToolCta: 'Strip EXIF & GPS Data Free',
+        summary: 'Digital photos from smartphones quietly record your exact home latitude, longitude, and device serial numbers. Learn how to scrub this data clean before posting online.',
         contentHtml: `
-            <p>Every photo taken on an iPhone, Android, or digital camera contains an invisible metadata header known as EXIF (Exchangeable Image File Format). If left unscrubbed, anyone who downloads your photo can pinpoint where you live or work.</p>
+            <p>Every time you take a photo with an iPhone or Android smartphone, the camera firmware automatically injects Exchangeable Image File Format (EXIF) headers directly into the image binary.</p>
 
-            <h2>What Data is Stored in EXIF?</h2>
+            <h2>What Data is Hidden in Your Photos?</h2>
             <ul>
-                <li>Exact GPS latitude, longitude, and elevation</li>
-                <li>Timestamp with date, hour, minute, and second</li>
-                <li>Device make, model, operating system, and camera serial number</li>
-                <li>Focal length, shutter speed, ISO, and flash settings</li>
+                <li><strong>GPS Coordinates:</strong> Exact latitude and longitude where the shutter clicked, often pinpointing your home address.</li>
+                <li><strong>Camera Identifiers:</strong> Phone model, lens serial number, and firmware version.</li>
+                <li><strong>Timestamps:</strong> Exact date, hour, minute, and second of capture.</li>
             </ul>
 
-            <h2>How to Clean EXIF in 2 Clicks</h2>
-            <p>Upload your photo to our <a href="/remove-exif-data">EXIF Privacy Cleaner</a>. Review the detected metadata, then download a scrubbed file with zero location tracking tags.</p>
+            <h2>How to Strip EXIF Metadata in Seconds</h2>
+            <p>Use the <a href="/remove-exif-data">ImageKit Pro EXIF Privacy Cleaner</a> to inspect and strip all metadata headers locally before uploading photos to public forums or classified ads.</p>
         `,
     },
     {
-        slug: 'how-to-extract-text-from-image-ocr',
-        title: 'How to Extract Text from Images and Screenshots Online (Free OCR)',
-        metaTitle: 'How to Extract Text from Image Online Free (OCR Guide)',
-        metaDescription: 'Extract text, numbers, and tabular data from screenshots, invoices, and scans across 12 languages using in-browser Optical Character Recognition.',
-        readTime: '4 min read',
+        slug: 'compress-image-to-100kb',
+        title: 'How to Compress an Image to Under 100KB for Web & Forms',
+        metaTitle: 'Compress Image to 100KB Online Free | ImageKit Pro',
+        metaDescription: 'Learn how to compress JPG and PNG images to under 100KB for passport applications, government portals, and web upload limits.',
+        readTime: '3 min read',
         publishDate: '2026-11-01',
-        primaryToolId: 'ocr',
-        primaryToolCta: 'Extract Text with In-Browser OCR',
-        summary: 'Retyping text from receipts, error logs, and scanned documents is tedious. Learn how client-side Optical Character Recognition (OCR) extracts editable text in seconds.',
+        primaryToolId: 'compressor',
+        primaryToolSlug: 'compress-image',
+        primaryToolCta: 'Compress Images Under 100KB',
+        summary: 'Many job applications, university submission portals, and government forms enforce a strict 100KB or 200KB file size limit. Here is how to meet it without blurry pixelation.',
         contentHtml: `
-            <p>Optical Character Recognition (OCR) converts pixel shapes into copyable Unicode characters. With modern WebAssembly neural networks, high-accuracy text extraction runs locally in your browser.</p>
+            <p>Encountering a "file size must be under 100KB" validation error when submitting an online form is frustrating. Often, simply reducing JPEG quality to 10% produces illegible blur.</p>
 
-            <h2>Tips for Maximum OCR Accuracy</h2>
-            <ul>
-                <li>Ensure adequate contrast between text and background.</li>
-                <li>Crop closely around the paragraph or table using our <a href="/crop-image">Image Cropper</a>.</li>
-                <li>Rotate tilted pages to horizontal alignment using our <a href="/rotate-image">Image Rotator</a>.</li>
-            </ul>
-
-            <h2>Extracting Text with ImageKit Pro</h2>
-            <p>Drop your screenshot into the <a href="/image-to-text">OCR Text Extractor</a>, select your document language, and copy the recognized text directly to your clipboard.</p>
-        `,
-    },
-    {
-        slug: 'how-to-remove-background-without-photoshop',
-        title: 'How to Remove Background from Images Without Photoshop (Free AI Cutout)',
-        metaTitle: 'Remove Background from Image Free Without Photoshop (AI Guide)',
-        metaDescription: 'Isolate portraits and products with automatic AI background removal directly in your browser. Get transparent PNG cutouts in seconds with zero uploads.',
-        readTime: '4 min read',
-        publishDate: '2026-11-01',
-        primaryToolId: 'background-remover',
-        primaryToolCta: 'Remove Image Background Free',
-        summary: 'Photoshop subscriptions are expensive and manual pen-tool tracing takes hours. Learn how in-browser AI models isolate portraits and product photos in seconds for free.',
-        contentHtml: `
-            <p>Creating transparent product cutouts for Amazon, Shopify, or eBay used to require expert Photoshop skills. Today, client-side machine learning models segment foreground subjects automatically.</p>
-
-            <h2>How Browser-Based AI Cutouts Work</h2>
-            <p>Using ONNX Runtime Web and WebAssembly, ImageKit Pro downloads an optimized neural segmentation model once. The model evaluates edge contrasts on your local GPU to isolate hair strands and silhouettes.</p>
-
-            <h2>3-Step Background Removal</h2>
+            <h2>The Two-Step Strategy: Resize First, Then Compress</h2>
+            <p>A 24-megapixel smartphone photo (6000×4000 pixels) cannot comfortably fit into 100KB without extreme compression artifacts. The secret is downsampling dimensions first:</p>
             <ol>
-                <li>Open the <a href="/remove-background">Background Remover</a>.</li>
-                <li>Drop your portrait or product photo onto the canvas.</li>
-                <li>Download your transparent PNG cutout ready for compositing.</li>
+                <li>Resize width to 1200–1600 pixels using the <a href="/resize-image">Image Resizer</a>.</li>
+                <li>Open the <a href="/compress-image">Image Compressor</a> and select 75% quality.</li>
+                <li>Check the real-time byte counter to verify the output is under 100KB.</li>
             </ol>
         `,
     },
     {
-        slug: 'social-media-image-sizes-guide',
-        title: 'Social Media Image Sizes Cheat Sheet 2026: Instagram, YouTube, LinkedIn, X',
-        metaTitle: 'Social Media Image Sizes Guide 2026 (Cheat Sheet) | ImageKit Pro',
-        metaDescription: 'Up-to-date aspect ratios and pixel dimensions for Instagram, YouTube, LinkedIn, Facebook, and X. Stop blurry uploads with exact specifications.',
-        readTime: '5 min read',
+        slug: 'remove-a-background-for-free',
+        aliases: ['how-to-remove-background-without-photoshop'],
+        title: 'How to Remove a Background for Free Without Photoshop',
+        metaTitle: 'Remove Background from Image Free - AI Method | ImageKit Pro',
+        metaDescription: 'Remove backgrounds from portrait and product photos in seconds using on-device neural networks. 100% free, private, no sign-up.',
+        readTime: '4 min read',
         publishDate: '2026-11-01',
-        primaryToolId: 'resizer',
-        primaryToolCta: 'Resize for Social Media Free',
-        summary: 'Social networks compress and crop poorly sized uploads. Use this reference guide to prepare crisp, correctly proportioned visual assets for every major social platform.',
+        primaryToolId: 'background-remover',
+        primaryToolSlug: 'remove-background',
+        primaryToolCta: 'Remove Background with On-Device AI',
+        summary: 'Creating product cutouts, professional headshots, or YouTube thumbnails traditionally required expensive Photoshop licenses. Here is how modern on-device AI handles it in seconds.',
         contentHtml: `
-            <p>Posting the wrong aspect ratio causes platforms to aggressively crop your key visual subjects. Here are the official dimensions for 2026:</p>
+            <p>E-commerce sellers on Amazon, Shopify, and eBay require clean white or transparent backgrounds for product catalogs. In the past, this meant manually tracing pen paths or paying per-image subscription services.</p>
 
-            <h2>Instagram Image Dimensions</h2>
-            <ul>
-                <li>Feed Post (Portrait): 1080 × 1350 px (4:5)</li>
-                <li>Feed Post (Square): 1080 × 1080 px (1:1)</li>
-                <li>Stories & Reels: 1080 × 1920 px (9:16)</li>
-            </ul>
-
-            <h2>YouTube & Video Dimensions</h2>
-            <ul>
-                <li>Video Thumbnail: 1280 × 720 px (16:9)</li>
-                <li>Channel Banner: 2560 × 1440 px</li>
-            </ul>
-
-            <h2>LinkedIn Dimensions</h2>
-            <ul>
-                <li>Post Image: 1200 × 627 px (1.91:1)</li>
-                <li>Company Banner: 1128 × 191 px</li>
-            </ul>
-
-            <p>Use the <a href="/resize-image">Social Media Resizer</a> to automatically export your artwork to these exact dimensions with one click.</p>
+            <h2>On-Device WebAssembly AI</h2>
+            <p>ImageKit Pro executes state-of-the-art neural segmentation models directly in your browser using ONNX Runtime Web and WebAssembly. Your photos are never sent to external servers, and processing is completely free with no usage caps.</p>
         `,
     },
     {
-        slug: 'how-to-make-favicon-for-website',
-        title: 'How to Make a Complete Favicon Package for Any Modern Website',
-        metaTitle: 'How to Make a Favicon for Your Website (Complete Guide)',
-        metaDescription: 'Generate all favicon sizes from SVG or PNG: 16x16, 32x32, 180x180 Apple touch icon, and manifest.json. Learn HTML header tags and best practices.',
-        readTime: '4 min read',
+        slug: 'extract-text-from-an-image',
+        aliases: ['how-to-extract-text-from-image-ocr'],
+        title: 'How to Extract Text from an Image Using Free In-Browser OCR',
+        metaTitle: 'Extract Text from Images & Scanned PDFs Free | ImageKit Pro',
+        metaDescription: 'Extract editable text from scanned documents, receipts, and book photos using free in-browser Optical Character Recognition (OCR).',
+        readTime: '3 min read',
         publishDate: '2026-11-01',
-        primaryToolId: 'favicon',
-        primaryToolCta: 'Generate Complete Favicon Bundle',
-        summary: 'A missing favicon makes your website look unfinished and hurts search visibility. Learn which resolutions are required for modern browser tabs, bookmarks, and mobile PWA home screens.',
+        primaryToolId: 'ocr',
+        primaryToolSlug: 'image-to-text',
+        primaryToolCta: 'Extract Text with In-Browser OCR',
+        summary: 'Need to copy text trapped inside a screenshot, scanned contract, or receipt? Optical Character Recognition (OCR) converts pixels into selectable, editable text.',
         contentHtml: `
-            <p>Google and Bing search results now display site favicons next to your domain name on both mobile and desktop results. A high-contrast, recognizable icon directly increases organic click-through rates.</p>
+            <p>Retyping long printed contracts, book passages, or expense receipts by hand wastes hours. Modern in-browser OCR reads glyphs directly from image bitmaps.</p>
 
-            <h2>Required Favicon Resolutions</h2>
-            <ul>
-                <li><code>favicon-16x16.png</code>: Standard browser tab icon</li>
-                <li><code>favicon-32x32.png</code>: Retina display bookmarks</li>
-                <li><code>apple-touch-icon.png</code> (180×180): iOS home screen bookmarks</li>
-                <li><code>android-chrome-192x192.png</code> & <code>512x512.png</code>: PWA home screen icons</li>
-            </ul>
-
-            <p>Upload your logo to the <a href="/favicon-generator">Favicon Generator</a> to generate the entire bundle and copy the HTML header code in seconds.</p>
+            <h2>Tesseract WebAssembly Engine</h2>
+            <p>Using <a href="/image-to-text">ImageKit Pro OCR</a>, recognition is executed locally using the Tesseract.js WebAssembly engine. Support for over a dozen languages allows you to transcribe receipts, business cards, and documents with high precision.</p>
         `,
     },
-]
+    {
+        slug: 'resize-images-for-instagram',
+        aliases: ['social-media-image-sizes-guide'],
+        title: 'How to Resize Images for Instagram: Feed, Story & Carousel (2026)',
+        metaTitle: 'Resize Images for Instagram Correctly (2026) | ImageKit Pro',
+        metaDescription: 'All official Instagram aspect ratios and pixel dimensions for posts, stories, reels, and profiles. Resize photos with one click.',
+        readTime: '4 min read',
+        publishDate: '2026-11-01',
+        primaryToolId: 'resizer',
+        primaryToolSlug: 'resize-image',
+        primaryToolCta: 'Resize for Instagram with Exact Presets',
+        summary: 'Posting photos with incorrect dimensions causes Instagram to stretch or crop critical elements. Master the three primary Instagram aspect ratios: Square, Portrait, and Story.',
+        contentHtml: `
+            <p>Instagram enforces strict aspect ratio rules. If you upload a horizontal 16:9 photo to your feed, it appears small with black bars. If you upload an overly tall image, Instagram crops off the top and bottom.</p>
+
+            <h2>Official 2026 Instagram Dimensions</h2>
+            <ul>
+                <li><strong>Square Post (1:1):</strong> 1080 × 1080 pixels. The classic standard.</li>
+                <li><strong>Portrait Post (4:5):</strong> 1080 × 1350 pixels. Occupies the maximum vertical screen space in mobile feeds.</li>
+                <li><strong>Story / Reel (9:16):</strong> 1080 × 1920 pixels. Full-screen mobile experience.</li>
+            </ul>
+
+            <p>Use the <a href="/resize-image">Social Media Resizer</a> to apply these exact presets in one click.</p>
+        `,
+    },
+];
+
+export const GUIDE_BY_SLUG = new Map<string, GuideArticle>(
+    GUIDES.flatMap((g) => {
+        const pairs: [string, GuideArticle][] = [[g.slug, g]];
+        if (g.aliases) {
+            for (const alias of g.aliases) {
+                pairs.push([alias, g]);
+            }
+        }
+        return pairs;
+    })
+);

@@ -9,6 +9,16 @@ interface NotFoundPageProps {
 export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onSelectTool }) => {
     useEffect(() => {
         document.title = '404: Page Not Found | ImageKit Pro'
+        let robots = document.querySelector('meta[name="robots"]')
+        if (!robots) {
+            robots = document.createElement('meta')
+            robots.setAttribute('name', 'robots')
+            document.head.appendChild(robots)
+        }
+        robots.setAttribute('content', 'noindex, follow')
+        return () => {
+            robots?.setAttribute('content', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1')
+        }
     }, [])
 
     return (
@@ -66,3 +76,4 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onSelectTool }) => {
 }
 
 export default NotFoundPage
+

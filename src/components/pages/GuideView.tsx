@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { GUIDES } from '../../data/guidesData'
+import { GUIDES, GUIDE_BY_SLUG } from '../../data/guidesData'
 import { ALL_TOOLS, TOOL_PATHS, Tool } from '../../constants/tools'
 import { SITE_URL } from '../../constants/site'
 import { Clock, Calendar, ArrowRight, UserCheck, ShieldCheck } from 'lucide-react'
@@ -11,7 +11,7 @@ interface GuideViewProps {
 }
 
 export const GuideView: React.FC<GuideViewProps> = ({ slug, onNavigate, onSelectTool }) => {
-    const guide = GUIDES.find((g) => g.slug === slug)
+    const guide = GUIDE_BY_SLUG.get(slug) || GUIDES.find((g) => g.slug === slug)
 
     useEffect(() => {
         if (!guide) return
@@ -161,3 +161,4 @@ export const GuideView: React.FC<GuideViewProps> = ({ slug, onNavigate, onSelect
 }
 
 export default GuideView
+
