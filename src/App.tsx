@@ -1,69 +1,20 @@
-import {
-    Columns2,
-    CopyCheck,
-    Crop,
-    Eraser,
-    Eye,
-    FileText,
-    Grid3X3,
-    ImageDown,
-    Layers,
-    Maximize2,
-    Minimize2,
-    Palette,
-    RotateCw,
-    ScanText,
-    Search,
-    ShieldCheck,
-    Smartphone,
-    Sparkles,
-    Star,
-    Terminal,
-    Type,
-    Video,
-    Wand2,
-} from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import CommandPalette from './components/CommandPalette'
 import CustomCursor from './components/CustomCursor'
 import ErrorBoundary from './components/ErrorBoundary'
 import FileActionChooser from './components/FileActionChooser'
 import Preloader from './components/Preloader'
-import ReduceEffectsToggle from './components/ReduceEffectsToggle'
 import RouteTransition from './components/RouteTransition'
 import { SceneProvider } from './components/scene/SceneProvider'
-import SmoothScroll from './components/SmoothScroll'
-import ScrollStory from './components/story/ScrollStory'
-import ThemeToggle from './components/ThemeToggle'
+import { HomeOrbitView } from './components/orbit/HomeOrbitView'
 import { useFavorites } from './hooks/useFavorites'
 import { useRecentlyUsed } from './hooks/useRecentlyUsed'
 import ToolSuggestionsBar from './ToolSuggestionsBar'
 import { useCapabilities } from './utils/capabilities'
+import { getInitialTheme, saveTheme, type Theme } from './utils/theme'
+import { Tool, TOOL_PATHS, PATH_TO_TOOL, TOOL_SEO, ALL_TOOLS } from './constants/tools'
 
 const ImmersiveCanvas = lazy(() => import('./components/scene/ImmersiveCanvas'))
-
-type Tool =
-    | 'home'
-    | 'compressor'
-    | 'resizer'
-    | 'background-remover'
-    | 'exif-cleaner'
-    | 'color-palette'
-    | 'instagram-grid'
-    | 'favicon'
-    | 'ocr'
-    | 'device-mockup'
-    | 'color-blindness'
-    | 'ascii-art'
-    | 'image-comparison'
-    | 'duplicate-finder'
-    | 'image-to-pdf'
-    | 'pdf-to-image'
-    | 'cropper'
-    | 'rotator'
-    | 'watermark'
-    | 'watermark-remover'
-    | 'thumbnail'
 
 const TOOL_LOADERS = {
     'ascii-art': () => import('./tools/AsciiArtGenerator'),
@@ -111,369 +62,6 @@ const WatermarkRemover = lazy(TOOL_LOADERS['watermark-remover'])
 
 function prefetchTool(tool: Tool): void {
     if (tool !== 'home') void TOOL_LOADERS[tool]()
-}
-
-const TOOL_PATHS: Record<Tool, string> = {
-    home: '/',
-    compressor: '/compress-image',
-    resizer: '/resize-image',
-    'background-remover': '/remove-background',
-    'exif-cleaner': '/remove-exif',
-    'color-palette': '/color-palette',
-    'instagram-grid': '/instagram-grid',
-    favicon: '/favicon-generator',
-    ocr: '/image-to-text',
-    'device-mockup': '/device-mockup',
-    'color-blindness': '/color-blindness',
-    'ascii-art': '/ascii-art',
-    'image-comparison': '/image-comparison',
-    'duplicate-finder': '/duplicate-finder',
-    'image-to-pdf': '/image-to-pdf',
-    'pdf-to-image': '/pdf-to-image',
-    cropper: '/crop-image',
-    rotator: '/rotate-image',
-    watermark: '/watermark',
-    'watermark-remover': '/remove-watermark',
-    thumbnail: '/thumbnail-maker',
-}
-
-const PATH_TO_TOOL = new Map<string, Tool>(
-    (Object.entries(TOOL_PATHS) as [Tool, string][]).map(([tool, path]) => [path, tool])
-)
-
-const TOOL_SEO: Record<string, { title: string; desc: string }> = {
-    home: { title: 'ImageKit Pro — Fast, Private In-Browser Image Tools', desc: '20 client-side image tools. Zero server uploads, absolute privacy.' },
-    compressor: { title: 'Image Compressor — ImageKit Pro', desc: 'Compress images while maintaining quality. JPEG, PNG, WebP supported.' },
-    resizer: { title: 'Social Media Resizer — ImageKit Pro', desc: 'Resize images for Instagram, YouTube, LinkedIn & more.' },
-    'background-remover': { title: 'Background Remover — ImageKit Pro', desc: 'AI-powered background removal running in your browser.' },
-    'exif-cleaner': { title: 'EXIF Privacy Cleaner — ImageKit Pro', desc: 'Remove GPS, camera info & metadata from your images.' },
-    'color-palette': { title: 'Color Palette Extractor — ImageKit Pro', desc: 'Extract colors with HEX, RGB & CSS gradients.' },
-    'instagram-grid': { title: 'Instagram Grid Splitter — ImageKit Pro', desc: 'Split images into 3×3, 3×2, 3×1 grids for carousel.' },
-    favicon: { title: 'Favicon Generator — ImageKit Pro', desc: 'Generate all favicon sizes + manifest.json + HTML snippet.' },
-    ocr: { title: 'OCR Text Extractor — ImageKit Pro', desc: 'Extract text from images in 12 languages.' },
-    'device-mockup': { title: 'Device Mockup Generator — ImageKit Pro', desc: 'iPhone, MacBook, iPad device frame mockups.' },
-    'color-blindness': { title: 'Color Blindness Simulator — ImageKit Pro', desc: 'See how designs appear to color blind users.' },
-    'ascii-art': { title: 'ASCII Art Generator — ImageKit Pro', desc: 'Convert images to ASCII text art.' },
-    'image-comparison': { title: 'Image Comparison Slider — ImageKit Pro', desc: 'Side-by-side image comparison with slider.' },
-    'duplicate-finder': { title: 'Duplicate Image Finder — ImageKit Pro', desc: 'Find similar images using perceptual hashing.' },
-    'image-to-pdf': { title: 'Image to PDF — ImageKit Pro', desc: 'Convert multiple images into a single PDF.' },
-    'pdf-to-image': { title: 'PDF to Image — ImageKit Pro', desc: 'Convert PDF pages to PNG images.' },
-    cropper: { title: 'Image Cropper — ImageKit Pro', desc: 'Crop images with preset aspect ratios.' },
-    rotator: { title: 'Image Rotator — ImageKit Pro', desc: 'Rotate 90°/180° and flip images.' },
-    watermark: { title: 'Watermark Adder — ImageKit Pro', desc: 'Add text watermarks with custom position & style.' },
-    'watermark-remover': { title: 'Watermark Remover — ImageKit Pro', desc: 'Remove watermarks using inpaint, blur, or pixelate.' },
-    thumbnail: { title: 'Thumbnail Maker — ImageKit Pro', desc: 'Create thumbnails with images, text & emojis.' },
-}
-
-interface ToolDefinition {
-    id: Tool
-    icon: ReactNode
-    title: string
-    description: string
-    isNew?: boolean
-    category: 'core' | 'edit' | 'pdf' | 'privacy' | 'design' | 'social' | 'accessibility'
-}
-
-const ALL_TOOLS: ToolDefinition[] = [
-    { id: 'compressor', icon: <Minimize2 size={18} />, title: 'Image Compressor', description: 'Reduce file size while maintaining visual quality.', category: 'core' },
-    { id: 'resizer', icon: <Maximize2 size={18} />, title: 'Social Media Resizer', description: 'Resize for Instagram, YouTube, LinkedIn & more.', category: 'core' },
-    { id: 'background-remover', icon: <Eraser size={18} />, title: 'Background Remover', description: 'AI-powered background removal.', category: 'core' },
-    { id: 'cropper', icon: <Crop size={18} />, title: 'Image Cropper', description: 'Crop with preset aspect ratios (1:1, 16:9, 4:3).', isNew: true, category: 'edit' },
-    { id: 'rotator', icon: <RotateCw size={18} />, title: 'Image Rotator', description: 'Rotate 90°/180° and flip horizontal/vertical.', isNew: true, category: 'edit' },
-    { id: 'watermark', icon: <Type size={18} />, title: 'Watermark Adder', description: 'Add text watermarks with custom position & style.', isNew: true, category: 'edit' },
-    { id: 'watermark-remover', icon: <Wand2 size={18} />, title: 'Watermark Remover', description: 'Remove watermarks using inpaint, blur, or pixelate.', isNew: true, category: 'edit' },
-    { id: 'image-to-pdf', icon: <FileText size={18} />, title: 'Image to PDF', description: 'Convert multiple images into a single PDF.', isNew: true, category: 'pdf' },
-    { id: 'pdf-to-image', icon: <ImageDown size={18} />, title: 'PDF to Image', description: 'Convert PDF pages to PNG images.', isNew: true, category: 'pdf' },
-    { id: 'exif-cleaner', icon: <ShieldCheck size={18} />, title: 'EXIF Privacy Cleaner', description: 'Remove GPS, camera info & metadata.', isNew: true, category: 'privacy' },
-    { id: 'duplicate-finder', icon: <CopyCheck size={18} />, title: 'Duplicate Finder', description: 'Find similar images using perceptual hashing.', isNew: true, category: 'privacy' },
-    { id: 'ocr', icon: <ScanText size={18} />, title: 'OCR Text Extractor', description: 'Extract text from images in 12 languages.', isNew: true, category: 'privacy' },
-    { id: 'color-palette', icon: <Palette size={18} />, title: 'Color Palette Extractor', description: 'Extract colors with HEX/RGB & CSS gradients.', isNew: true, category: 'design' },
-    { id: 'device-mockup', icon: <Smartphone size={18} />, title: 'Device Mockup Generator', description: 'iPhone, MacBook, iPad device frames.', isNew: true, category: 'design' },
-    { id: 'ascii-art', icon: <Terminal size={18} />, title: 'ASCII Art Generator', description: 'Convert images to ASCII text art.', isNew: true, category: 'design' },
-    { id: 'thumbnail', icon: <Video size={18} />, title: 'Thumbnail Maker', description: 'Create thumbnails with images, text & emojis.', isNew: true, category: 'design' },
-    { id: 'instagram-grid', icon: <Grid3X3 size={18} />, title: 'Instagram Grid Splitter', description: 'Split into 3×3/3×2/3×1 grids for carousel.', isNew: true, category: 'social' },
-    { id: 'favicon', icon: <Layers size={18} />, title: 'Favicon Generator', description: 'All sizes + manifest.json + HTML snippet.', isNew: true, category: 'social' },
-    { id: 'color-blindness', icon: <Eye size={18} />, title: 'Color Blindness Simulator', description: 'See how designs appear to color blind users.', isNew: true, category: 'accessibility' },
-    { id: 'image-comparison', icon: <Columns2 size={18} />, title: 'Image Comparison Slider', description: 'Before/after comparison with slider.', isNew: true, category: 'accessibility' },
-]
-
-interface ToolCardProps {
-    icon: ReactNode
-    title: string
-    description: string
-    isNew?: boolean
-    onClick: () => void
-    onPrefetch?: () => void
-    isFavorite?: boolean
-    onToggleFavorite?: (e: React.MouseEvent) => void
-}
-
-function ToolCard({
-    icon,
-    title,
-    description,
-    isNew,
-    onClick,
-    onPrefetch,
-    isFavorite,
-    onToggleFavorite,
-}: ToolCardProps) {
-    return (
-        <div
-            className="tool-card"
-            role="button"
-            tabIndex={0}
-            onClick={onClick}
-            onMouseEnter={onPrefetch}
-            onFocus={onPrefetch}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onClick()
-                }
-            }}
-        >
-            <div className="tool-card-top">
-                <div className="tool-card-icon-box">{icon}</div>
-                <div className="tool-card-actions">
-                    {isNew && <span className="new-badge">NEW</span>}
-                    {onToggleFavorite && (
-                        <button
-                            type="button"
-                            className={`fav-star-btn ${isFavorite ? 'is-favorite' : ''}`}
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                onToggleFavorite(e)
-                            }}
-                            aria-label={isFavorite ? `Remove ${title} from favorites` : `Add ${title} to favorites`}
-                            aria-pressed={isFavorite}
-                        >
-                            <Star size={15} fill={isFavorite ? 'currentColor' : 'none'} />
-                        </button>
-                    )}
-                </div>
-            </div>
-            <h3 className="tool-card-title">{title}</h3>
-            <p className="tool-card-desc">{description}</p>
-        </div>
-    )
-}
-
-function Header({
-    onLogoClick,
-    onOpenSearch,
-}: {
-    onLogoClick: () => void
-    onOpenSearch: () => void
-}) {
-    return (
-        <header className="app-header">
-            <div className="header-inner">
-                <button type="button" className="brand-logo" onClick={onLogoClick} aria-label="ImageKit Pro Home">
-                    <span className="brand-mark">
-                        <Sparkles size={16} />
-                    </span>
-                    <span className="brand-name">ImageKit Pro</span>
-                    <span className="brand-badge">PRO</span>
-                </button>
-
-                <button
-                    type="button"
-                    className="header-search-btn"
-                    onClick={onOpenSearch}
-                    aria-label="Search tools"
-                >
-                    <Search size={15} />
-                    <span>Search tools…</span>
-                    <span className="header-search-hint">Ctrl K</span>
-                </button>
-
-                <div className="header-actions">
-                    <ReduceEffectsToggle />
-                    <div className="privacy-pill">
-                        <span className="privacy-dot" />
-                        <span>100% In-Browser</span>
-                    </div>
-                    <ThemeToggle />
-                </div>
-            </div>
-        </header>
-    )
-}
-
-interface HomePageProps {
-    onSelectTool: (tool: Tool) => void
-    onOpenSearch: () => void
-    favorites: string[]
-    recentTools: string[]
-    isFavorite: (tool: string) => boolean
-    toggleFavorite: (tool: string) => void
-    onDropFile: (file: File) => void
-    is3DEnabled: boolean
-}
-
-function HomePage({
-    onSelectTool,
-    onOpenSearch,
-    favorites,
-    recentTools,
-    isFavorite,
-    toggleFavorite,
-    onDropFile,
-    is3DEnabled,
-}: HomePageProps) {
-    const [selectedCategory, setSelectedCategory] = useState<string>('all')
-    const [isDraggingOver, setIsDraggingOver] = useState(false)
-
-    const categories = [
-        { key: 'all', label: 'All Tools' },
-        { key: 'core', label: 'Core Essentials' },
-        { key: 'edit', label: 'Edit & Transform' },
-        { key: 'pdf', label: 'PDF Utilities' },
-        { key: 'privacy', label: 'Privacy & Security' },
-        { key: 'design', label: 'Design & Creative' },
-        { key: 'social', label: 'Social Media' },
-        { key: 'accessibility', label: 'Accessibility' },
-    ]
-
-    const favTools = ALL_TOOLS.filter((t) => favorites.includes(t.id))
-    const recentToolCards = recentTools
-        .map((id) => ALL_TOOLS.find((t) => t.id === id))
-        .filter((t): t is ToolDefinition => !!t)
-
-    const filteredTools =
-        selectedCategory === 'all'
-            ? ALL_TOOLS
-            : ALL_TOOLS.filter((t) => t.category === selectedCategory)
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDraggingOver(true)
-    }
-
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDraggingOver(false)
-    }
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDraggingOver(false)
-        const dropped = e.dataTransfer.files[0]
-        if (dropped) onDropFile(dropped)
-    }
-
-    return (
-        <div className="home-container">
-            {/* Scroll-Driven Cinematic Story */}
-            <ScrollStory
-                onSelectTool={(id) => onSelectTool(id as Tool)}
-                onOpenSearch={onOpenSearch}
-                is3DEnabled={is3DEnabled}
-            />
-
-            {/* Accessible HTML Tool Grid Section */}
-            <div id="accessible-tools-grid" className="accessible-tools-section" style={{ paddingTop: 'var(--spacing-16)' }}>
-                <div style={{ marginBottom: 'var(--spacing-8)' }}>
-                    <div className="section-label" style={{ marginBottom: 'var(--spacing-2)' }}>THE COMPLETE SUITE</div>
-                    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(32px, 5vw, 56px)', letterSpacing: '-0.02em', color: 'var(--color-text-primary)' }}>
-                        20 precision image tools.
-                    </h2>
-                    <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                        100% private. All calculations happen locally inside your browser.
-                    </p>
-                </div>
-
-            {/* Drop Anywhere Affordance */}
-            <div
-                className={`home-drop-banner ${isDraggingOver ? 'is-drag-over' : ''}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-            >
-                <Sparkles size={16} />
-                <span>
-                    <strong>Drop an image anywhere</strong> to instantly select an action (Compress, Resize, Crop, Remove BG…)
-                </span>
-            </div>
-
-            {/* Favorites Section */}
-            {favTools.length > 0 && (
-                <>
-                    <div className="section-label">★ Favorites</div>
-                    <div className="tools-grid" style={{ marginBottom: 'var(--spacing-8)' }}>
-                        {favTools.map((t) => (
-                            <ToolCard
-                                key={t.id}
-                                {...t}
-                                onClick={() => onSelectTool(t.id)}
-                                onPrefetch={() => prefetchTool(t.id)}
-                                isFavorite={true}
-                                onToggleFavorite={() => toggleFavorite(t.id)}
-                            />
-                        ))}
-                    </div>
-                </>
-            )}
-
-            {/* Recently Used Section */}
-            {recentToolCards.length > 0 && (
-                <>
-                    <div className="section-label">Recently Used</div>
-                    <div className="tools-grid" style={{ marginBottom: 'var(--spacing-8)' }}>
-                        {recentToolCards.map((t) => (
-                            <ToolCard
-                                key={`recent-${t.id}`}
-                                {...t}
-                                onClick={() => onSelectTool(t.id)}
-                                onPrefetch={() => prefetchTool(t.id)}
-                                isFavorite={isFavorite(t.id)}
-                                onToggleFavorite={() => toggleFavorite(t.id)}
-                            />
-                        ))}
-                    </div>
-                </>
-            )}
-
-            {/* Category Filter Chips */}
-            <div className="filter-bar">
-                {categories.map((cat) => {
-                    const count =
-                        cat.key === 'all'
-                            ? ALL_TOOLS.length
-                            : ALL_TOOLS.filter((t) => t.category === cat.key).length
-                    const isActive = selectedCategory === cat.key
-
-                    return (
-                        <button
-                            key={cat.key}
-                            type="button"
-                            className={`filter-chip ${isActive ? 'active' : ''}`}
-                            onClick={() => setSelectedCategory(cat.key)}
-                        >
-                            <span>{cat.label}</span>
-                            <span className="filter-chip-count">{count}</span>
-                        </button>
-                    )
-                })}
-            </div>
-
-                {/* Tools Grid */}
-                <div className="tools-grid">
-                    {filteredTools.map((t) => (
-                        <ToolCard
-                            key={t.id}
-                            {...t}
-                            onClick={() => onSelectTool(t.id)}
-                            onPrefetch={() => prefetchTool(t.id)}
-                            isFavorite={isFavorite(t.id)}
-                            onToggleFavorite={() => toggleFavorite(t.id)}
-                        />
-                    ))}
-                </div>
-            </div>
-        </div>
-    )
 }
 
 function ToolLoading() {
@@ -528,10 +116,23 @@ function App() {
     const [isRouteTransitioning, setIsRouteTransitioning] = useState(false)
     const [pendingTool, setPendingTool] = useState<Tool | null>(null)
     const [preloaderDone, setPreloaderDone] = useState(() => (typeof window === 'undefined' ? true : getToolFromLocation() !== 'home'))
+    const [is3DLocal, setIs3DLocal] = useState(true)
+    const [theme, setTheme] = useState<Theme>(getInitialTheme)
 
     const { favorites, toggleFavorite, isFavorite } = useFavorites()
-    const { recentTools, addRecent } = useRecentlyUsed()
+    const { addRecent } = useRecentlyUsed()
     const { shouldRun3D } = useCapabilities()
+
+    const toggle3D = useCallback(() => setIs3DLocal((v) => !v), [])
+
+    const toggleTheme = useCallback(() => {
+        setTheme((prev) => {
+            const next = prev === 'dark' ? 'light' : 'dark'
+            saveTheme(next)
+            document.documentElement.setAttribute('data-theme', next)
+            return next
+        })
+    }, [])
 
     // Navigation popstate
     useEffect(() => {
@@ -755,90 +356,80 @@ function App() {
         ? ALL_TOOLS.find((t) => t.id === pendingTool)?.title || 'ImageKit Pro'
         : undefined
 
+    const is3DActive = shouldRun3D && is3DLocal
+
     return (
         <SceneProvider>
-            <SmoothScroll enabled={shouldRun3D && currentTool === 'home'}>
-                <div className="app-root">
-                    <CustomCursor />
+            <div className={`app-root ${currentTool === 'home' ? 'home-mode' : 'workspace-mode'}`}>
+                <CustomCursor />
 
-                    {!preloaderDone && (
-                        <Preloader onComplete={() => setPreloaderDone(true)} />
-                    )}
+                {!preloaderDone && (
+                    <Preloader onComplete={() => setPreloaderDone(true)} />
+                )}
 
-                    <RouteTransition
-                        isTransitioning={isRouteTransitioning}
-                        targetToolTitle={pendingTitle}
-                        onTransitionComplete={() => setIsRouteTransitioning(false)}
-                    />
+                <RouteTransition
+                    isTransitioning={isRouteTransitioning}
+                    targetToolTitle={pendingTitle}
+                    onTransitionComplete={() => setIsRouteTransitioning(false)}
+                />
 
-                    {/* 3D Immersive Canvas (Mounted on home when 3D enabled) */}
-                    {shouldRun3D && currentTool === 'home' && (
-                        <Suspense fallback={null}>
-                            <ImmersiveCanvas onSelectTool={handleSelectTool} />
-                        </Suspense>
-                    )}
+                {/* 3D Immersive Canvas (Mounted ONLY on home when 3D is active, completely unmounted in tools) */}
+                {is3DActive && currentTool === 'home' && (
+                    <Suspense fallback={null}>
+                        <ImmersiveCanvas onSelectTool={handleSelectTool} />
+                    </Suspense>
+                )}
 
-                    <Header onLogoClick={handleBack} onOpenSearch={() => setCmdOpen(true)} />
-
-                    <main className="main-viewport">
-                        {currentTool === 'home' ? (
-                            <HomePage
+                <main className="main-viewport">
+                    {currentTool === 'home' ? (
+                        <HomeOrbitView
+                            onSelectTool={handleSelectTool}
+                            onOpenSearch={() => setCmdOpen(true)}
+                            onDropFile={handleDropOnHome}
+                            favorites={favorites}
+                            isFavorite={isFavorite}
+                            toggleFavorite={toggleFavorite}
+                            is3DEnabled={is3DActive}
+                            onToggle3D={toggle3D}
+                            allTools={ALL_TOOLS}
+                            theme={theme}
+                            onToggleTheme={toggleTheme}
+                        />
+                    ) : (
+                        <div className="tool-view-container">
+                            <ErrorBoundary resetKey={currentTool}>
+                                <Suspense fallback={<ToolLoading />}>{renderTool()}</Suspense>
+                            </ErrorBoundary>
+                            <ToolSuggestionsBar
+                                currentTool={currentTool}
                                 onSelectTool={handleSelectTool}
-                                onOpenSearch={() => setCmdOpen(true)}
-                                favorites={favorites}
-                                recentTools={recentTools}
-                                isFavorite={isFavorite}
-                                toggleFavorite={toggleFavorite}
-                                onDropFile={handleDropOnHome}
-                                is3DEnabled={shouldRun3D}
+                                hasActiveImage={!!activeFile}
                             />
-                        ) : (
-                            <>
-                                <ErrorBoundary resetKey={currentTool}>
-                                    <Suspense fallback={<ToolLoading />}>{renderTool()}</Suspense>
-                                </ErrorBoundary>
-                                <ToolSuggestionsBar
-                                    currentTool={currentTool}
-                                    onSelectTool={handleSelectTool}
-                                    hasActiveImage={!!activeFile}
-                                />
-                            </>
-                        )}
-                    </main>
-
-                    <footer className="app-footer">
-                        <div className="footer-inner">
-                            <div>
-                                © 2026 ImageKit Pro · 100% Client-Side Image Tools · MIT License
-                            </div>
-                            <div>
-                                Crafted with precision by <strong>Alok Kushwaha</strong>
-                            </div>
                         </div>
-                    </footer>
+                    )}
+                </main>
 
-                    {/* Global Command Palette (Ctrl+K) */}
-                    <CommandPalette
-                        isOpen={cmdOpen}
-                        onClose={() => setCmdOpen(false)}
-                        items={ALL_TOOLS.map((t) => ({
-                            id: t.id,
-                            title: t.title,
-                            description: t.description,
-                            category: t.category,
-                            icon: t.icon,
-                        }))}
-                        onSelect={(id) => handleSelectTool(id)}
-                    />
+                {/* Global Command Palette (Ctrl+K) */}
+                <CommandPalette
+                    isOpen={cmdOpen}
+                    onClose={() => setCmdOpen(false)}
+                    items={ALL_TOOLS.map((t) => ({
+                        id: t.id,
+                        title: t.title,
+                        description: t.description,
+                        category: t.category,
+                        icon: t.icon,
+                    }))}
+                    onSelect={(id) => handleSelectTool(id)}
+                />
 
-                    {/* Drop On Home File Action Chooser */}
-                    <FileActionChooser
-                        file={droppedFile}
-                        onSelectTool={handleChooserSelect}
-                        onClose={() => setDroppedFile(null)}
-                    />
-                </div>
-            </SmoothScroll>
+                {/* Drop On Home File Action Chooser */}
+                <FileActionChooser
+                    file={droppedFile}
+                    onSelectTool={handleChooserSelect}
+                    onClose={() => setDroppedFile(null)}
+                />
+            </div>
         </SceneProvider>
     )
 }

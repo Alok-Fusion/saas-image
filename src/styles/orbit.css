@@ -1,0 +1,882 @@
+/* ==========================================================================
+   IMAGEKIT PRO — SINGLE-SCREEN 100DVH 3D ORBIT & UI STYLES
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   App Root & Home Shell (Strictly 100dvh Zero-Scroll)
+   -------------------------------------------------------------------------- */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+body.home-locked {
+    overflow: hidden;
+    height: 100dvh;
+    max-height: 100dvh;
+}
+
+.home-orbit-shell {
+    position: relative;
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 10;
+    user-select: none;
+}
+
+.home-orbit-shell * {
+    box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   Orbit Topbar
+   -------------------------------------------------------------------------- */
+.orbit-topbar {
+    pointer-events: auto;
+    width: 100%;
+    height: 52px;
+    padding: 0 var(--spacing-6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    background: linear-gradient(180deg, rgba(7, 7, 10, 0.85) 0%, rgba(7, 7, 10, 0) 100%);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.orbit-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+}
+
+.orbit-brand-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    background: transparent;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+    padding: 0;
+}
+
+.orbit-brand-badge {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    padding: 2px 6px;
+    background-color: var(--color-electric-lime);
+    color: #07070a;
+    border-radius: var(--radius-xs);
+    letter-spacing: 0.05em;
+}
+
+.orbit-categories-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.orbit-categories-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.orbit-cat-chip {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.orbit-cat-chip:hover {
+    color: var(--color-text-primary);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.orbit-cat-chip.is-active {
+    color: #ffffff;
+    background-color: rgba(99, 102, 241, 0.18);
+    border-color: rgba(99, 102, 241, 0.45);
+    font-weight: 500;
+}
+
+.orbit-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.orbit-action-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-family: var(--font-sans);
+    padding: 5px 11px;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.orbit-action-pill-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-primary);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.orbit-action-pill-btn.tour-btn {
+    background: rgba(212, 255, 58, 0.1);
+    border-color: rgba(212, 255, 58, 0.35);
+    color: var(--color-electric-lime);
+}
+
+.orbit-action-pill-btn.tour-btn:hover {
+    background: var(--color-electric-lime);
+    color: #07070a;
+}
+
+/* --------------------------------------------------------------------------
+   Center Hero & Drop Well
+   -------------------------------------------------------------------------- */
+.orbit-hero-container {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 var(--spacing-6);
+    margin-top: -30px;
+}
+
+.orbit-hero-headline {
+    font-family: var(--font-display);
+    font-size: clamp(34px, 4.8vw, 68px);
+    font-weight: 400;
+    line-height: 1.05;
+    color: #ffffff;
+    margin: 0 0 var(--spacing-2) 0;
+    letter-spacing: -0.02em;
+    text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+
+.orbit-hero-subtext {
+    font-size: clamp(13px, 1.3vw, 15px);
+    color: var(--color-text-muted);
+    margin: 0 0 var(--spacing-5) 0;
+    max-width: 540px;
+    line-height: 1.45;
+}
+
+/* Drop Well */
+.orbit-drop-well {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    height: 82px;
+    background: rgba(18, 18, 24, 0.65);
+    border: 1px dashed rgba(255, 255, 255, 0.16);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.orbit-drop-well:hover {
+    border-color: var(--color-accent);
+    background: rgba(99, 102, 241, 0.12);
+    box-shadow: 0 0 24px rgba(99, 102, 241, 0.25);
+    transform: translateY(-1px);
+}
+
+.orbit-drop-well.is-dragging {
+    border-color: var(--color-electric-lime);
+    background: rgba(212, 255, 58, 0.14);
+    box-shadow: 0 0 36px rgba(212, 255, 58, 0.35);
+    transform: scale(1.02);
+}
+
+.orbit-drop-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    color: var(--color-text-secondary);
+}
+
+.orbit-drop-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-accent);
+}
+
+.orbit-drop-text-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.orbit-drop-main-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #ffffff;
+}
+
+.orbit-drop-sub-text {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.orbit-sample-btn {
+    pointer-events: auto;
+    margin-top: var(--spacing-3);
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s ease;
+}
+
+.orbit-sample-btn:hover {
+    color: var(--color-electric-lime);
+    text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Suggested Tools Notification Bar
+   -------------------------------------------------------------------------- */
+.orbit-suggested-strip {
+    pointer-events: auto;
+    margin-top: var(--spacing-3);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: 6px 14px;
+    background: rgba(212, 255, 58, 0.09);
+    border: 1px solid rgba(212, 255, 58, 0.35);
+    border-radius: var(--radius-full);
+    backdrop-filter: blur(12px);
+    animation: fadeIn 0.3s ease;
+}
+
+.orbit-suggested-label {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--color-electric-lime);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.orbit-suggested-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.orbit-suggested-chip {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.orbit-suggested-chip:hover {
+    background: var(--color-electric-lime);
+    color: #07070a;
+}
+
+/* --------------------------------------------------------------------------
+   Tool Hover Card (Interactive 3D Node Inspection)
+   -------------------------------------------------------------------------- */
+.tool-hover-card-root {
+    pointer-events: auto;
+    position: fixed;
+    bottom: 50px;
+    left: var(--spacing-8);
+    width: 320px;
+    background: rgba(14, 14, 20, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(20px);
+    padding: var(--spacing-4);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+    z-index: 100;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
+    animation: slideUpFade 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tool-hover-card-root:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.hover-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-3);
+}
+
+.hover-card-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: var(--radius-xs);
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+}
+
+.hover-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+}
+
+.hover-card-open-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.hover-card-open-btn:hover {
+    transform: scale(1.1);
+}
+
+.hover-card-preview-stage {
+    width: 100%;
+    height: 96px;
+    background: rgba(7, 7, 10, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.hover-card-desc {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--spacing-2) 0;
+}
+
+.hover-card-action-hint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.hover-card-kbd {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   Mini Preview Micro-Animations
+   -------------------------------------------------------------------------- */
+.mini-preview-compress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.compress-box-anim {
+    width: 44px;
+    height: 32px;
+    border: 2px solid #6366f1;
+    border-radius: 4px;
+    animation: compressSqueeze 2s ease-in-out infinite;
+}
+
+@keyframes compressSqueeze {
+    0%, 100% {
+        transform: scale(1, 1);
+    }
+    50% {
+        transform: scale(0.65, 0.65);
+    }
+}
+
+.compress-stats {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-before {
+    color: var(--color-text-muted);
+    text-decoration: line-through;
+}
+
+.stat-after {
+    font-weight: 600;
+}
+
+.mini-preview-cutout {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cutout-checkerboard {
+    position: absolute;
+    inset: 0;
+    opacity: 0.25;
+    background-image: linear-gradient(45deg, #222 25%, transparent 25%),
+        linear-gradient(-45deg, #222 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #222 75%),
+        linear-gradient(-45deg, transparent 75%, #222 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+.cutout-floating-subject {
+    position: relative;
+    z-index: 2;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #6366f1;
+    border: 2px solid #d4ff3a;
+    animation: cutoutFloat 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes cutoutFloat {
+    0% {
+        transform: translateY(4px) scale(0.95);
+    }
+    100% {
+        transform: translateY(-6px) scale(1.05);
+    }
+}
+
+.cutout-badge {
+    position: absolute;
+    bottom: 6px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    z-index: 3;
+}
+
+.mini-preview-crop {
+    position: relative;
+    width: 120px;
+    height: 68px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #1e1e28;
+}
+
+.crop-brackets-anim {
+    position: absolute;
+    inset: 12px;
+    border: 1.5px dashed #38bdf8;
+    animation: cropPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes cropPulse {
+    0%, 100% {
+        inset: 12px;
+    }
+    50% {
+        inset: 6px 18px;
+    }
+}
+
+.mini-preview-ocr {
+    position: relative;
+    width: 140px;
+    height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+}
+
+.ocr-text-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ocr-line {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+.ocr-line:nth-child(1) { width: 90%; }
+.ocr-line:nth-child(2) { width: 75%; }
+.ocr-line:nth-child(3) { width: 60%; }
+
+.ocr-laser-beam {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    animation: ocrLaser 2s ease-in-out infinite alternate;
+}
+
+@keyframes ocrLaser {
+    0% {
+        top: 6px;
+    }
+    100% {
+        top: 52px;
+    }
+}
+
+.mini-preview-palette {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.palette-chip {
+    width: 22px;
+    height: 42px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s ease;
+}
+
+.palette-chip:hover {
+    transform: translateY(-4px);
+}
+
+.mini-preview-compare {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 140px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+}
+
+.compare-divider-bar {
+    width: 2px;
+    height: 48px;
+    animation: compareSlide 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes compareSlide {
+    0% {
+        transform: translateX(-24px);
+    }
+    100% {
+        transform: translateX(24px);
+    }
+}
+
+.mini-preview-generic {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.generic-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulseGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        opacity: 0.4;
+        transform: scale(0.9);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.3);
+    }
+}
+
+.generic-tool-active {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--color-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   Guided Tour Overlay
+   -------------------------------------------------------------------------- */
+.guided-tour-overlay {
+    pointer-events: auto;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(7, 7, 10, 0.45);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 48px;
+    animation: fadeIn 0.25s ease;
+}
+
+.tour-badge-pill {
+    position: fixed;
+    top: 68px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-electric-lime);
+    color: #07070a;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    box-shadow: 0 0 20px rgba(212, 255, 58, 0.4);
+}
+
+.tour-caption-card {
+    width: 90%;
+    max-width: 580px;
+    background: rgba(18, 18, 24, 0.92);
+    border: 1px solid rgba(212, 255, 58, 0.4);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(24px);
+    padding: var(--spacing-5) var(--spacing-6);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.tour-caption-card:hover {
+    transform: translateY(-2px);
+}
+
+.tour-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-2);
+}
+
+.tour-tag {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--color-electric-lime);
+    letter-spacing: 0.08em;
+}
+
+.tour-dismiss-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 2px;
+}
+
+.tour-dismiss-btn:hover {
+    color: #ffffff;
+}
+
+.tour-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0 0 var(--spacing-2) 0;
+}
+
+.tour-desc {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin: 0 0 var(--spacing-4) 0;
+}
+
+.tour-progress-track {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: var(--spacing-3);
+}
+
+.tour-step-dot {
+    flex: 1;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    transition: background-color 0.25s ease;
+}
+
+.tour-step-dot.is-active {
+    background: var(--color-electric-lime);
+    box-shadow: 0 0 8px rgba(212, 255, 58, 0.6);
+}
+
+.tour-step-dot.is-done {
+    background: rgba(212, 255, 58, 0.4);
+}
+
+.tour-footer-hint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.tour-esc-hint {
+    font-family: var(--font-mono);
+}
+
+/* --------------------------------------------------------------------------
+   Orbit Footer
+   -------------------------------------------------------------------------- */
+.orbit-footer {
+    pointer-events: auto;
+    height: 32px;
+    padding: 0 var(--spacing-6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgba(7, 7, 10, 0.5);
+    backdrop-filter: blur(8px);
+}
+
+.orbit-footer-author {
+    color: var(--color-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   Accessible 2D List / Grid View Fallback
+   -------------------------------------------------------------------------- */
+.orbit-list-view-container {
+    pointer-events: auto;
+    position: fixed;
+    inset: 52px 0 32px 0;
+    z-index: 15;
+    background: var(--color-bg-base);
+    overflow-y: auto;
+    padding: var(--spacing-8) var(--spacing-6);
+}
+
+.orbit-list-view-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Optimizations (< 768px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .orbit-topbar {
+        padding: 0 var(--spacing-4);
+        height: 48px;
+    }
+
+    .orbit-categories-nav {
+        display: none;
+    }
+
+    .orbit-hero-container {
+        margin-top: -10px;
+        padding: 0 var(--spacing-4);
+    }
+
+    .orbit-drop-well {
+        height: 72px;
+        max-width: 320px;
+    }
+
+    .tool-hover-card-root {
+        left: var(--spacing-4);
+        right: var(--spacing-4);
+        width: auto;
+        bottom: 38px;
+    }
+
+    .orbit-footer {
+        padding: 0 var(--spacing-4);
+        font-size: 10px;
+    }
+}
