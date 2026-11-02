@@ -10,6 +10,15 @@ import { HomeOrbitView } from './components/orbit/HomeOrbitView'
 import { useFavorites } from './hooks/useFavorites'
 import { useRecentlyUsed } from './hooks/useRecentlyUsed'
 import ToolSuggestionsBar from './ToolSuggestionsBar'
+import ToolSeoSection from './components/seo/ToolSeoSection'
+import CategoryPage, { CategorySlug } from './components/pages/CategoryPage'
+import GuidesHub from './components/pages/GuidesHub'
+import GuideView from './components/pages/GuideView'
+import AboutPage from './components/pages/AboutPage'
+import PrivacyPolicyPage from './components/pages/PrivacyPolicyPage'
+import ContactPage from './components/pages/ContactPage'
+import NotFoundPage from './components/pages/NotFoundPage'
+import Footer from './components/Footer'
 import { useCapabilities } from './utils/capabilities'
 import { getInitialTheme, saveTheme, type Theme } from './utils/theme'
 import { Tool, TOOL_PATHS, PATH_TO_TOOL, TOOL_SEO, ALL_TOOLS } from './constants/tools'
@@ -93,30 +102,67 @@ function normalizePath(path: string): string {
     return trimmed === '' ? '/' : trimmed
 }
 
-function getToolFromLocation(): Tool {
+export type AppRoute =
+    | { type: 'tool'; tool: Tool }
+    | { type: 'category'; slug: CategorySlug }
+    | { type: 'guides' }
+    | { type: 'guide'; slug: string }
+    | { type: 'about' }
+    | { type: 'privacy' }
+    | { type: 'contact' }
+    | { type: '404' }
+
+function getRouteFromLocation(): AppRoute {
+    if (typeof window === 'undefined') return { type: 'tool', tool: 'home' }
+
+    // Check legacy hash redirect
     const legacyHash = window.location.hash.replace(/^#\/?/, '')
     if (legacyHash) {
-        const tool =
-            PATH_TO_TOOL.get(normalizePath(legacyHash)) ??
-            (ALL_TOOLS.some((t) => t.id === legacyHash) ? (legacyHash as Tool) : 'home')
-        history.replaceState(null, '', TOOL_PATHS[tool])
-        return tool
+        const cleanedHash = normalizePath('/' + legacyHash)
+        const toolFromHash =
+            PATH_TO_TOOL.get(cleanedHash) ??
+            (ALL_TOOLS.some((t) => t.id === legacyHash) ? (legacyHash as Tool) : null)
+        if (toolFromHash) {
+            history.replaceState(null, '', TOOL_PATHS[toolFromHash])
+            return { type: 'tool', tool: toolFromHash }
+        }
     }
-    return PATH_TO_TOOL.get(normalizePath(window.location.pathname)) ?? 'home'
+
+    const path = normalizePath(window.location.pathname)
+    if (path === '/' || path === '') return { type: 'tool', tool: 'home' }
+
+    const tool = PATH_TO_TOOL.get(path)
+    if (tool) return { type: 'tool', tool }
+
+    if (path === '/image-tools') return { type: 'category', slug: 'image-tools' }
+    if (path === '/pdf-tools') return { type: 'category', slug: 'pdf-tools' }
+    if (path === '/privacy-tools') return { type: 'category', slug: 'privacy-tools' }
+
+    if (path === '/guides') return { type: 'guides' }
+    if (path.startsWith('/guides/')) {
+        const slug = path.replace(/^\/guides\//, '')
+        return { type: 'guide', slug }
+    }
+
+    if (path === '/about') return { type: 'about' }
+    if (path === '/privacy') return { type: 'privacy' }
+    if (path === '/contact') return { type: 'contact' }
+
+    return { type: '404' }
 }
 
-function setPathForTool(tool: Tool) {
-    history.pushState(null, '', TOOL_PATHS[tool])
+function isHomeRoute(r: AppRoute): boolean {
+    return r.type === 'tool' && r.tool === 'home'
 }
 
 function App() {
-    const [currentTool, setCurrentTool] = useState<Tool>(getToolFromLocation)
+    const [route, setRoute] = useState<AppRoute>(getRouteFromLocation)
     const [activeFile, setActiveFile] = useState<File | null>(null)
     const [droppedFile, setDroppedFile] = useState<File | null>(null)
     const [cmdOpen, setCmdOpen] = useState(false)
     const [isRouteTransitioning, setIsRouteTransitioning] = useState(false)
     const [pendingTool, setPendingTool] = useState<Tool | null>(null)
-    const [preloaderDone, setPreloaderDone] = useState(() => (typeof window === 'undefined' ? true : getToolFromLocation() !== 'home'))
+    const [preloaderDone, setPreloaderDone] = useState(() => (typeof window === 'undefined' ? true : !isHomeRoute(getRouteFromLocation())))
     const [is3DLocal, setIs3DLocal] = useState(true)
     const [theme, setTheme] = useState<Theme>(getInitialTheme)
 
@@ -135,14 +181,14 @@ function App() {
         })
     }, [])
 
-    // Navigation popstate
+    // Popstate listener
     useEffect(() => {
-        const handler = () => setCurrentTool(getToolFromLocation())
+        const handler = () => setRoute(getRouteFromLocation())
         window.addEventListener('popstate', handler)
         return () => window.removeEventListener('popstate', handler)
     }, [])
 
-    // Global Cmd+K / Ctrl+K shortcut
+    // Global Cmd+K / Ctrl+K
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -154,45 +200,72 @@ function App() {
         return () => window.removeEventListener('keydown', onKeyDown)
     }, [])
 
-    // SEO updates
+    const isHome = route.type === 'tool' && route.tool === 'home'
+    const currentTool = route.type === 'tool' ? route.tool : null
+
+    // SEO tags for tool pages
     useEffect(() => {
-        const seo = TOOL_SEO[currentTool] || TOOL_SEO.home
-        document.title = seo.title
-        const metaDesc = document.querySelector('meta[name="description"]')
-        if (metaDesc) metaDesc.setAttribute('content', seo.desc)
-        const canonical = document.querySelector('link[rel="canonical"]')
-        if (canonical) canonical.setAttribute('href', `${SITE_URL}${TOOL_PATHS[currentTool]}`)
-        const ogUrl = document.querySelector('meta[property="og:url"]')
-        if (ogUrl) ogUrl.setAttribute('content', `${SITE_URL}${TOOL_PATHS[currentTool]}`)
+        if (currentTool) {
+            const seo = TOOL_SEO[currentTool] || TOOL_SEO.home
+            document.title = seo.title
+            const metaDesc = document.querySelector('meta[name="description"]')
+            if (metaDesc) metaDesc.setAttribute('content', seo.desc)
+            let canonical = document.querySelector('link[rel="canonical"]')
+            if (!canonical) {
+                canonical = document.createElement('link')
+                canonical.setAttribute('rel', 'canonical')
+                document.head.appendChild(canonical)
+            }
+            canonical.setAttribute('href', `${SITE_URL}${TOOL_PATHS[currentTool]}`)
+            const ogUrl = document.querySelector('meta[property="og:url"]')
+            if (ogUrl) ogUrl.setAttribute('content', `${SITE_URL}${TOOL_PATHS[currentTool]}`)
+        }
     }, [currentTool])
 
-    const handleSelectTool = useCallback(
-        (tool: Tool | string) => {
-            const t = tool as Tool
-            if (t === currentTool) return
-            prefetchTool(t)
-            setPendingTool(t)
+    const navigateTo = useCallback(
+        (target: string) => {
+            let nextUrl = target
+            let targetTool: Tool | null = null
+
+            if (target === 'home' || target === '/') {
+                nextUrl = '/'
+                targetTool = 'home'
+            } else if (ALL_TOOLS.some((t) => t.id === target)) {
+                targetTool = target as Tool
+                nextUrl = TOOL_PATHS[targetTool]
+                prefetchTool(targetTool)
+            } else if (target in TOOL_PATHS) {
+                targetTool = target as Tool
+                nextUrl = TOOL_PATHS[targetTool]
+                prefetchTool(targetTool)
+            } else if (target === 'image-tools' || target === 'pdf-tools' || target === 'privacy-tools') {
+                nextUrl = `/${target}`
+            } else if (target === 'guides' || target === 'about' || target === 'privacy' || target === 'contact') {
+                nextUrl = `/${target}`
+            }
+
+            if (targetTool) {
+                setPendingTool(targetTool)
+            }
+
             setIsRouteTransitioning(true)
             setTimeout(() => {
-                setCurrentTool(t)
-                setPathForTool(t)
-                if (t !== 'home') addRecent(t)
+                if (window.location.pathname !== nextUrl) {
+                    history.pushState(null, '', nextUrl)
+                }
+                setRoute(getRouteFromLocation())
+                if (targetTool && targetTool !== 'home') {
+                    addRecent(targetTool)
+                }
                 window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-            }, 280)
+            }, 260)
         },
-        [addRecent, currentTool]
+        [addRecent]
     )
 
     const handleBack = useCallback(() => {
-        if (currentTool === 'home') return
-        setPendingTool('home')
-        setIsRouteTransitioning(true)
-        setTimeout(() => {
-            setCurrentTool('home')
-            setPathForTool('home')
-            window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-        }, 280)
-    }, [currentTool])
+        navigateTo('/')
+    }, [navigateTo])
 
     const handleDropOnHome = useCallback((file: File) => {
         setDroppedFile(file)
@@ -203,10 +276,11 @@ function App() {
             setActiveFile(droppedFile)
             setDroppedFile(null)
         }
-        handleSelectTool(toolId)
+        navigateTo(toolId)
     }
 
     const renderTool = () => {
+        if (!currentTool) return null
         switch (currentTool) {
             case 'compressor':
                 return (
@@ -361,7 +435,7 @@ function App() {
 
     return (
         <SceneProvider>
-            <div className={`app-root ${currentTool === 'home' ? 'home-mode' : 'workspace-mode'}`}>
+            <div className={`app-root ${isHome ? 'home-mode' : 'workspace-mode'}`}>
                 <CustomCursor />
 
                 {!preloaderDone && (
@@ -374,17 +448,17 @@ function App() {
                     onTransitionComplete={() => setIsRouteTransitioning(false)}
                 />
 
-                {/* 3D Immersive Canvas (Mounted ONLY on home when 3D is active, completely unmounted in tools) */}
-                {is3DActive && currentTool === 'home' && (
+                {/* 3D Immersive Canvas (Mounted ONLY on home when 3D is active) */}
+                {is3DActive && isHome && (
                     <Suspense fallback={null}>
-                        <ImmersiveCanvas onSelectTool={handleSelectTool} />
+                        <ImmersiveCanvas onSelectTool={navigateTo} />
                     </Suspense>
                 )}
 
                 <main className="main-viewport">
-                    {currentTool === 'home' ? (
+                    {isHome ? (
                         <HomeOrbitView
-                            onSelectTool={handleSelectTool}
+                            onSelectTool={navigateTo}
                             onOpenSearch={() => setCmdOpen(true)}
                             onDropFile={handleDropOnHome}
                             favorites={favorites}
@@ -396,16 +470,56 @@ function App() {
                             theme={theme}
                             onToggleTheme={toggleTheme}
                         />
-                    ) : (
+                    ) : route.type === 'tool' && route.tool !== 'home' ? (
                         <div className="tool-view-container">
-                            <ErrorBoundary resetKey={currentTool}>
+                            <ErrorBoundary resetKey={route.tool}>
                                 <Suspense fallback={<ToolLoading />}>{renderTool()}</Suspense>
                             </ErrorBoundary>
                             <ToolSuggestionsBar
-                                currentTool={currentTool}
-                                onSelectTool={handleSelectTool}
+                                currentTool={route.tool}
+                                onSelectTool={navigateTo}
                                 hasActiveImage={!!activeFile}
                             />
+                            <ToolSeoSection
+                                toolId={route.tool}
+                                onSelectTool={navigateTo}
+                            />
+                            <Footer onSelectTool={navigateTo} />
+                        </div>
+                    ) : route.type === 'category' ? (
+                        <div className="tool-view-container">
+                            <CategoryPage slug={route.slug} onSelectTool={navigateTo} />
+                            <Footer onSelectTool={navigateTo} />
+                        </div>
+                    ) : route.type === 'guides' ? (
+                        <div className="tool-view-container">
+                            <GuidesHub onNavigate={navigateTo} onSelectTool={navigateTo} />
+                            <Footer onSelectTool={navigateTo} />
+                        </div>
+                    ) : route.type === 'guide' ? (
+                        <div className="tool-view-container">
+                            <GuideView slug={route.slug} onNavigate={navigateTo} onSelectTool={navigateTo} />
+                            <Footer onSelectTool={navigateTo} />
+                        </div>
+                    ) : route.type === 'about' ? (
+                        <div className="tool-view-container">
+                            <AboutPage onSelectTool={navigateTo} />
+                            <Footer onSelectTool={navigateTo} />
+                        </div>
+                    ) : route.type === 'privacy' ? (
+                        <div className="tool-view-container">
+                            <PrivacyPolicyPage onSelectTool={navigateTo} />
+                            <Footer onSelectTool={navigateTo} />
+                        </div>
+                    ) : route.type === 'contact' ? (
+                        <div className="tool-view-container">
+                            <ContactPage onSelectTool={navigateTo} />
+                            <Footer onSelectTool={navigateTo} />
+                        </div>
+                    ) : (
+                        <div className="tool-view-container">
+                            <NotFoundPage onSelectTool={navigateTo} />
+                            <Footer onSelectTool={navigateTo} />
                         </div>
                     )}
                 </main>
@@ -421,7 +535,7 @@ function App() {
                         category: t.category,
                         icon: t.icon,
                     }))}
-                    onSelect={(id) => handleSelectTool(id)}
+                    onSelect={(id) => navigateTo(id)}
                 />
 
                 {/* Drop On Home File Action Chooser */}
