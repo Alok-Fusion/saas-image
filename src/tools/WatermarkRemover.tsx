@@ -62,6 +62,7 @@ export default function WatermarkRemover({
     const [intensity, setIntensity] = useState(15)
     const containerRef = useRef<HTMLDivElement>(null)
     const taskRef = useRef<WorkerTask<ArrayBuffer> | null>(null)
+    const latestFileRef = useRef(file)
     const preview = useObjectUrl(file)
     const processedUrl = useObjectUrl(processedBlob)
     const { success, error } = useToast()
@@ -81,6 +82,10 @@ export default function WatermarkRemover({
         setSelection(null)
         setProgress(0)
     }, [])
+
+    useEffect(() => {
+        latestFileRef.current = file
+    }, [file])
 
     useEffect(() => {
         if (!file) return
@@ -150,7 +155,8 @@ export default function WatermarkRemover({
         setProgress(0)
 
         try {
-            const img = await loadImage(file)
+            // Build on the last result, so earlier removals survive this one
+            const img = await loadImage(processedBlob ?? file)
             const canvas = document.createElement('canvas')
             canvas.width = originalInfo.width
             canvas.height = originalInfo.height
@@ -208,7 +214,11 @@ export default function WatermarkRemover({
             }
 
             const outBlob = await canvasToBlob(canvas, 'image/png')
+            // The image was replaced during this run, so its result must not become the new source
+            if (latestFileRef.current !== file) return
             setProcessedBlob(outBlob)
+            // This area is done and re-applying it would compound. A selection drawn during the run is still to do.
+            setSelection((current) => (current === selection ? null : current))
             success('Watermark removed successfully')
         } catch (err) {
             if (!(err instanceof Error && err.name === 'AbortError')) {
