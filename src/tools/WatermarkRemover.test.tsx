@@ -231,6 +231,19 @@ describe('WatermarkRemover', () => {
             drawImage.mock.calls.slice(1).forEach((args) => expect(args.length).toBeLessThan(9))
         })
 
+        it('builds the Pixelate mosaic from the whole selection', async () => {
+            await renderTool(file)
+            await click('Pixelate')
+
+            await removeArea(FIRST_AREA)
+
+            // 100 × 50 px at the default 15 px blocks is a 6 × 3 mosaic
+            const [shrink, enlarge] = drawImage.mock.calls.slice(-2)
+            expect(shrink.slice(1)).toEqual([100, 100, 100, 50, 0, 0, 6, 3])
+            expect(enlarge.slice(1)).toEqual([0, 0, 6, 3, 100, 100, 100, 50])
+            expect((enlarge[0] as HTMLCanvasElement).width).toBe(6)
+        })
+
         it('keeps building across more than two removals', async () => {
             await renderTool(file)
 

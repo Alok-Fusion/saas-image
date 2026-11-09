@@ -208,16 +208,17 @@ export default function WatermarkRemover({
                 ctx.drawImage(img, 0, 0)
                 ctx.restore()
             } else {
-                const tempCanvas = document.createElement('canvas')
-                tempCanvas.width = sw
-                tempCanvas.height = sh
-                const tempCtx = tempCanvas.getContext('2d')
-                if (!tempCtx) throw new Error('Canvas is not available')
-                tempCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh)
                 const smallW = Math.max(1, Math.floor(sw / intensity))
                 const smallH = Math.max(1, Math.floor(sh / intensity))
+                const tempCanvas = document.createElement('canvas')
+                tempCanvas.width = smallW
+                tempCanvas.height = smallH
+                const tempCtx = tempCanvas.getContext('2d')
+                if (!tempCtx) throw new Error('Canvas is not available')
+                // Shrink the whole selection so each block averages its own area, then enlarge it unsmoothed
+                tempCtx.imageSmoothingQuality = 'high'
+                tempCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, smallW, smallH)
                 ctx.imageSmoothingEnabled = false
-                ctx.drawImage(tempCanvas, 0, 0, sw, sh, sx, sy, smallW, smallH)
                 ctx.drawImage(tempCanvas, 0, 0, smallW, smallH, sx, sy, sw, sh)
                 ctx.imageSmoothingEnabled = true
             }
