@@ -62,7 +62,6 @@ export default function WatermarkRemover({
     const [intensity, setIntensity] = useState(15)
     const containerRef = useRef<HTMLDivElement>(null)
     const taskRef = useRef<WorkerTask<ArrayBuffer> | null>(null)
-    const [displayScale, setDisplayScale] = useState(1)
     const preview = useObjectUrl(file)
     const processedUrl = useObjectUrl(processedBlob)
     const { success, error } = useToast()
@@ -102,21 +101,14 @@ export default function WatermarkRemover({
 
     useEffect(() => () => taskRef.current?.cancel(), [])
 
-    // Calculate display scale when image dimensions are ready
-    useEffect(() => {
-        if (containerRef.current && originalInfo) {
-            const containerWidth = containerRef.current.clientWidth - 40
-            const scale = Math.min(1, containerWidth / originalInfo.width)
-            setDisplayScale(scale)
-        }
-    }, [originalInfo])
-
+    // Measure the image as displayed right now: it can resize at any time, and it may
+    // not have laid out yet when its info arrives.
     const pointFromEvent = (e: React.PointerEvent) => {
         const rect = containerRef.current?.querySelector('img')?.getBoundingClientRect()
-        if (!rect) return null
+        if (!rect?.width || !rect.height || !originalInfo) return null
         return {
-            x: Math.max(0, Math.min((e.clientX - rect.left) / displayScale, originalInfo?.width ?? 0)),
-            y: Math.max(0, Math.min((e.clientY - rect.top) / displayScale, originalInfo?.height ?? 0)),
+            x: Math.max(0, Math.min(((e.clientX - rect.left) / rect.width) * originalInfo.width, originalInfo.width)),
+            y: Math.max(0, Math.min(((e.clientY - rect.top) / rect.height) * originalInfo.height, originalInfo.height)),
         }
     }
 
@@ -370,14 +362,14 @@ export default function WatermarkRemover({
             />
 
             {/* Selection marquee */}
-            {selection && selection.width > 0 && selection.height > 0 && (
+            {selection && originalInfo && selection.width > 0 && selection.height > 0 && (
                 <div
                     style={{
                         position: 'absolute',
-                        left: selection.x * displayScale,
-                        top: selection.y * displayScale,
-                        width: selection.width * displayScale,
-                        height: selection.height * displayScale,
+                        left: `${(selection.x / originalInfo.width) * 100}%`,
+                        top: `${(selection.y / originalInfo.height) * 100}%`,
+                        width: `${(selection.width / originalInfo.width) * 100}%`,
+                        height: `${(selection.height / originalInfo.height) * 100}%`,
                         border: '2px dashed var(--color-accent)',
                         backgroundColor: 'var(--color-accent-subtle)',
                         pointerEvents: 'none',
