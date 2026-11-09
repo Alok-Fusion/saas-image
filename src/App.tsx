@@ -204,6 +204,13 @@ function App() {
     const isHome = route.type === 'tool' && route.tool === 'home'
     const currentTool = route.type === 'tool' ? route.tool : null
 
+    // Snapshot the session image when the open tool changes, so a tool's own output
+    // (onProduceFile) reaches the next tool without resetting the one that produced it.
+    const [toolInput, setToolInput] = useState<{ tool: Tool | null; file: File | null }>({ tool: null, file: null })
+    if (toolInput.tool !== currentTool) {
+        setToolInput({ tool: currentTool, file: activeFile })
+    }
+
     // SEO tags for tool pages
     useEffect(() => {
         if (currentTool) {
@@ -287,7 +294,7 @@ function App() {
                 return (
                     <ImageCompressor
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
@@ -295,7 +302,7 @@ function App() {
                 return (
                     <SocialMediaResizer
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
@@ -303,7 +310,7 @@ function App() {
                 return (
                     <BackgroundRemover
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
@@ -311,7 +318,7 @@ function App() {
                 return (
                     <ExifCleaner
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
@@ -319,35 +326,35 @@ function App() {
                 return (
                     <ColorPaletteExtractor
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                     />
                 )
             case 'instagram-grid':
                 return (
                     <InstagramGridSplitter
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                     />
                 )
             case 'favicon':
                 return (
                     <FaviconGenerator
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                     />
                 )
             case 'ocr':
                 return (
                     <OcrExtractor
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                     />
                 )
             case 'device-mockup':
                 return (
                     <DeviceMockupGenerator
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
@@ -355,21 +362,21 @@ function App() {
                 return (
                     <ColorBlindnessSimulator
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                     />
                 )
             case 'ascii-art':
                 return (
                     <AsciiArtGenerator
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                     />
                 )
             case 'image-comparison':
                 return (
                     <ImageComparisonSlider
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                     />
                 )
             case 'duplicate-finder':
@@ -378,7 +385,7 @@ function App() {
                 return (
                     <ImageToPdf
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                     />
                 )
             case 'pdf-to-image':
@@ -387,7 +394,7 @@ function App() {
                 return (
                     <ImageCropper
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
@@ -395,7 +402,7 @@ function App() {
                 return (
                     <ImageRotator
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
@@ -403,7 +410,7 @@ function App() {
                 return (
                     <WatermarkAdder
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
@@ -411,7 +418,7 @@ function App() {
                 return (
                     <WatermarkRemover
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
@@ -419,7 +426,7 @@ function App() {
                 return (
                     <ThumbnailMaker
                         onBack={handleBack}
-                        initialFile={activeFile}
+                        initialFile={toolInput.file}
                         onProduceFile={setActiveFile}
                     />
                 )
