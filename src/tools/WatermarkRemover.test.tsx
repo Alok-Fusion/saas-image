@@ -115,7 +115,7 @@ describe('WatermarkRemover', () => {
         expect(host.textContent).toContain('400 × 200 px selected')
     })
 
-    describe('repeated removals', () => {
+    describe('removals', () => {
         const FIRST_AREA: Area = [[100, 100], [200, 150]]
         const SECOND_AREA: Area = [[500, 300], [620, 360]]
 
@@ -124,6 +124,9 @@ describe('WatermarkRemover', () => {
 
         let outputs: Blob[]
         let drawImage: ReturnType<typeof vi.fn>
+        let rect: ReturnType<typeof vi.fn>
+        let clip: ReturnType<typeof vi.fn>
+        let restore: ReturnType<typeof vi.fn>
 
         const click = async (label: string) => {
             await act(async () => {
@@ -158,10 +161,18 @@ describe('WatermarkRemover', () => {
             setDisplayedImage(0, 0, 2000, 1000)
 
             drawImage = vi.fn()
+            rect = vi.fn()
+            clip = vi.fn()
+            restore = vi.fn()
             vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
                 drawImage,
                 getImageData: () => ({ data: new Uint8ClampedArray(4) }),
                 putImageData: vi.fn(),
+                save: vi.fn(),
+                beginPath: vi.fn(),
+                rect,
+                clip,
+                restore,
             } as unknown as CanvasRenderingContext2D)
             vi.stubGlobal('ImageData', class {})
 
@@ -201,6 +212,23 @@ describe('WatermarkRemover', () => {
                 .filter(Boolean)
             expect(decodedDraws.length).toBeGreaterThan(0)
             decodedDraws.forEach((source) => expect(source).toBe(outputs[0]))
+        })
+
+        it('keeps Blur inside the selection at full strength', async () => {
+            await renderTool(file)
+            await click('Blur')
+
+            await removeArea(FIRST_AREA)
+
+            expect(rect).toHaveBeenCalledWith(100, 100, 100, 50)
+            const [, ...blurDraws] = drawImage.mock.invocationCallOrder
+            expect(blurDraws.length).toBeGreaterThan(0)
+            blurDraws.forEach((draw) => {
+                expect(draw).toBeGreaterThan(clip.mock.invocationCallOrder[0])
+                expect(draw).toBeLessThan(restore.mock.invocationCallOrder[0])
+            })
+            // Reading only the selection would fade the blur out towards its edges
+            drawImage.mock.calls.slice(1).forEach((args) => expect(args.length).toBeLessThan(9))
         })
 
         it('keeps building across more than two removals', async () => {

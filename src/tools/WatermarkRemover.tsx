@@ -195,9 +195,18 @@ export default function WatermarkRemover({
                     0
                 )
             } else if (removalMethod === 'blur') {
+                // Clip so nothing changes outside the selection. The blur reads the whole image, so it
+                // stays at full strength up to the selection's edges. The oversized copy sits behind
+                // its fade at the image's own edges, where sharp pixels would otherwise show through.
+                const overscan = intensity * 3
+                ctx.save()
+                ctx.beginPath()
+                ctx.rect(sx, sy, sw, sh)
+                ctx.clip()
                 ctx.filter = `blur(${intensity}px)`
-                ctx.drawImage(img, sx, sy, sw, sh, sx, sy, sw, sh)
-                ctx.filter = 'none'
+                ctx.drawImage(img, -overscan, -overscan, originalInfo.width + overscan * 2, originalInfo.height + overscan * 2)
+                ctx.drawImage(img, 0, 0)
+                ctx.restore()
             } else {
                 const tempCanvas = document.createElement('canvas')
                 tempCanvas.width = sw
